@@ -7,232 +7,232 @@
 </p>
 
 <p align="center">
-  <b>BEO Solopreneur OS</b> là một hệ điều hành mã nguồn mở, tối giản và cục bộ (local-first) giúp một cá nhân vận hành toàn bộ doanh nghiệp của mình thông qua hệ thống nhân sự ảo (AI Agents) và các quy trình tự động hóa thông minh có kiểm duyệt nghiêm ngặt (Human-in-the-loop).
+  <b>BEO Solopreneur OS</b> is an open-source, minimalist, and local-first operating system that helps individuals run their entire business through a swarm workforce of AI Agents with strict human-in-the-loop supervision.
 </p>
 
 ---
 
-## 🐻 Beo là gì?
+## 🐻 What is Beo?
 
-Vận hành một doanh nghiệp một mình (Solo Entrepreneur, Indie Hacker, Freelancer) luôn đi kèm với thách thức lớn về thời gian và giới hạn kỹ năng. Bạn vừa phải làm Lập trình viên, vừa làm Chuyên viên Marketing, vừa làm Kế toán, vừa làm Pháp lý. 
+Running a business alone (Solo Entrepreneur, Indie Hacker, Freelancer) always comes with a major challenge: limited time and skills. You have to act as a Software Developer, Marketing Specialist, Accountant, and Legal Counsel all at once.
 
-**Beo** ra đời để thay đổi điều đó. Lấy cảm hứng từ triết lý *"Company of One"* và phong cách thiết kế tối giản, hiệu năng cao của **Linear**, Beo cung cấp cho bạn một **Bầy nhân sự AI chuyên trách (Swarm Workforce)** làm việc ngầm để biến các ý tưởng của bạn thành hiện thực, trong khi bạn giữ vai trò là **Người phê duyệt và Kiểm soát tối cao (Human-in-the-loop)**.
+**Beo** was created to change that. Inspired by the *"Company of One"* philosophy and the minimalist, high-performance design language of **Linear**, Beo provides a **Swarm Workforce of AI Agents** working in the background to bring your ideas to life, while you retain absolute control as the **Human-in-the-Loop Approval and Control Authority**.
 
 > [!IMPORTANT]
-> **Triết lý của Beo:** AI thực thi, con người phê duyệt. Toàn bộ dữ liệu doanh nghiệp nằm hoàn toàn dưới sự kiểm soát cục bộ của bạn trên ổ đĩa cứng. Không có nhà cung cấp SaaS trung gian nào có thể khóa tài khoản hoặc kiểm soát dữ liệu của bạn.
+> **Beo's Philosophy:** AI executes, humans approve. All business data resides completely under your local control on your hard drive. No third-party SaaS provider can lock your account or control your data.
 
 ---
 
-## ✨ Các tính năng cốt lõi làm nên sự khác biệt
+## ✨ Core Features That Make a Difference
 
-### 1. Kiến trúc Local-First & Disk-as-Source-of-Truth
-Beo không nhân bản dữ liệu của bạn vào các cơ sở dữ liệu đám mây phức tạp. SQLite chỉ được sử dụng để ghi nhật ký hoạt động và trạng thái phê duyệt. **Toàn bộ tài liệu, cấu hình phòng ban, và mã nguồn của công ty được đọc/ghi trực tiếp theo thời gian thực xuống ổ đĩa cục bộ.**
-* Bạn có thể mở song song thư mục workspace bằng bất kỳ IDE ngoài nào (VS Code, Cursor, Obsidian).
-* Mọi chỉnh sửa của bạn trên file nguồn sẽ ngay lập tức được hệ thống nhận diện và cập nhật lên UI nhờ **Reactive Config Watcher**.
+### 1. Local-First Architecture & Disk-as-Source-of-Truth
+Beo does not duplicate your data to complex cloud databases. SQLite is only used to log activities and approval states. **All documents, department configurations, and company source code are read and written directly to your local drive in real time.**
+* You can open the workspace folder in parallel using any external IDE (VS Code, Cursor, Obsidian).
+* Any edits you make directly to source files will be instantly detected and updated on the UI via the **Reactive Config Watcher**.
 
-### 2. Trợ lý Điều phối & Onboarding 5 Phút
-Bắt đầu với một "trang giấy trắng" trống trơn. Bạn chỉ cần trò chuyện với **AI Thư ký (Secretary Agent)** để phỏng vấn ý tưởng kinh doanh. Hệ thống sẽ tự động phân tích và khởi tạo **3 tài liệu cấu trúc cốt lõi**:
-* `AIM.md`: Định hình tầm nhìn, sứ mệnh, giá trị độc bản (UVP) và chân dung khách hàng.
-* `OPERATIONS.md`: Đề xuất cơ cấu phòng ban và kích hoạt các AI Agents chuyên trách.
-* `FINANCE.md`: Thiết lập ngân sách API (Daily/Monthly Cap) và rà soát pháp lý ban đầu.
+### 2. Orchestration Assistant & 5-Minute Onboarding
+Start with a blank slate. Simply chat with the **Secretary Agent** to interview your business idea. The system will automatically analyze and initialize **3 core structural documents**:
+* `AIM.md`: Defines vision, mission, unique value proposition (UVP), and target customer personas.
+* `OPERATIONS.md`: Proposes department structures and activates specialized AI Agents.
+* `FINANCE.md`: Establishes API budgets (Daily/Monthly Cap) and initial legal reviews.
 
-*Khi bạn nhấn duyệt các file này, hệ thống sẽ tự động tuyển dụng các AI Agents tương ứng, mở khóa các module và cập nhật thanh Sidebar ngay lập tức.*
+*Once you approve these files, the system automatically recruits the corresponding AI Agents, unlocks modules, and updates the sidebar navigation immediately.*
 
 <p align="center"><img src="images/beo_inbox.png" alt="BEO Approval Queue Inbox Illustration" width="90%"></p>
 
-### 3. Hàng đợi phê duyệt nghiêm ngặt (Approval Queue / Inbox)
-Đây là trái tim bảo mật của Beo. Mọi hành động nhạy cảm của AI đều bị chặn lại và đẩy vào Inbox của bạn dưới dạng một **Approval Item** trực quan:
-* **Đọc/Ghi file (`write_file`, `edit_file`)**: Hiển thị khung so sánh mã nguồn (UI Diff) rõ ràng để bạn kiểm tra trước khi ghi đè.
-* **Thực thi lệnh shell (`run_command`)**: Hiển thị chính xác câu lệnh terminal chuẩn bị chạy.
-* **Gửi email (`send_email`)**: Cho phép bạn đọc và chỉnh sửa trực tiếp nội dung thư trước khi nhấn nút gửi.
-* Bạn có toàn quyền: **Approve (Phê duyệt) / Edit (Chỉnh sửa trực tiếp nội dung) / Reject (Từ chối)**.
+### 3. Strict Approval Queue (Inbox)
+This is the security heartbeat of Beo. Every sensitive action proposed by an AI Agent is intercepted and queued in your Inbox as an intuitive **Approval Item**:
+* **Read/Write File (`write_file`, `edit_file`)**: Displays a clear code diff (UI Diff) for review before overwriting.
+* **Shell Command Execution (`run_command`)**: Displays the exact terminal command proposed to run.
+* **Send Email (`send_email`)**: Allows you to read and directly edit the email body before hitting send.
+* You have full control: **Approve (execute) / Edit (directly modify content) / Reject (decline)**.
 
-### 4. An toàn hệ thống vượt trội (Jailbreak-proof & Sandboxed)
-* **Loop Guard**: Tự động ngắt tiến trình của Agent nếu phát hiện vòng lặp lỗi liên tục quá `5` lần để bảo toàn ví tiền tài khoản API của bạn.
-* **Static Command Safety Filter**: Quét tĩnh các từ khóa nguy hiểm (`rm -rf`, `shutdown`, `del /s`...) để tự động cưỡng chế nâng mức rủi ro lên `HIGH` và đẩy cảnh báo đỏ vào Inbox.
-* **Path Traversal Protection**: Kiểm tra an toàn đường dẫn tuyệt đối, chặn đứng mọi hành vi ghi đè file hệ thống bên ngoài workspace.
+### 4. Enterprise-Grade System Safety (Jailbreak-proof & Sandboxed)
+* **Loop Guard**: Automatically terminates an Agent process if it detects an error loop repeating more than `5` times to protect your API balance.
+* **Static Command Safety Filter**: Statically scans for dangerous keywords (`rm -rf`, `shutdown`, `del /s`...) to automatically escalate risk level to `HIGH` and flag red alerts in the Inbox.
+* **Path Traversal Protection**: Validates absolute file paths, completely blocking any attempts to read or overwrite system files outside the workspace.
 
-### 5. Swarm Orchestrator Engine (Đa chế độ Vận hành Bầy đàn)
-Các nhân sự AI hoạt động linh hoạt thông qua 3 chế độ cộng tác:
-1. **Chế độ Tuần tự (Sequential)**: Chuyển giao ngữ cảnh tích lũy xuyên suốt chuỗi công việc (Planner lập kế hoạch -> Dev viết code -> Marketer viết bài).
-2. **Chế độ Song song (Parallel)**: Tận dụng đa luồng để thực thi nhiều tác vụ độc lập cùng lúc, giúp tăng tốc tối đa hiệu năng.
-3. **Chế độ Thảo luận (Collaborative/Consensus)**: Các Agent tham gia vào cuộc thảo luận nhóm đa chiều để tự phản biện và tối ưu hóa giải pháp trước khi đưa ra kết quả cuối cùng. Toàn bộ hội thoại được hiển thị thời gian thực dưới dạng bóng chat sinh động trên UI.
+### 5. Swarm Orchestrator Engine (Multi-Mode Swarm Operation)
+AI Agents collaborate dynamically through three modes of operation:
+1. **Sequential Mode**: Passes accumulated context step-by-step through a pipeline (Planner designs -> Dev codes -> Marketer writes).
+2. **Parallel Mode**: Utilizes multi-threading to execute independent tasks concurrently, maximizing performance speed.
+3. **Collaborative/Consensus Mode**: Agents engage in multi-agent group discussions to self-reflect, peer-review, and optimize solutions before outputting the final result. All discussions are visualized in real-time as dynamic chat bubbles on the UI.
 
 ---
 
-## 📐 Kiến trúc hệ thống
+## 📐 System Architecture
 
-Dưới đây là sơ đồ luồng dữ liệu và cách các thành phần trong Beo tương tác với nhau:
+Here is the data flow diagram showing how components in Beo interact with each other:
 
 ```mermaid
 graph TD
-    subgraph Giao diện người dùng [Vite + React UI]
-        Sidebar[Thanh điều hướng Sidebar] --> MainArea[Bảng làm việc chính Chat/Views/Wiki]
-        Inbox[Hàng đợi phê duyệt Inbox] -->|Duyệt/Sửa/Từ chối| MainArea
-        CmdK[Thanh lệnh nhanh Ctrl+K]
+    subgraph User Interface [Vite + React UI]
+        Sidebar[Sidebar Navigation] --> MainArea[Main Workstation: Chat/Views/Wiki]
+        Inbox[Inbox Approval Queue] -->|Approve/Edit/Reject| MainArea
+        CmdK[Quick Command Palette Ctrl+K]
     end
 
-    subgraph Máy chủ dịch vụ [FastAPI Backend]
+    subgraph Service Server [FastAPI Backend]
         Gateway[API Gateway] --> Engine[Swarm Orchestrator Engine]
         Gateway --> Watcher[Reactive Config Watcher]
         Engine --> AgentWrap[Custom Agent Wrapper]
         Engine --> Sandbox[Command & File Sandbox]
         Engine --> APILog[API Cost Tracker]
         
-        Watcher -->|Quét thời gian thực| Disk
-        Sandbox -->|Ghi log phê duyệt| SQLite[(beo_data.db)]
+        Watcher -->|Real-time scan| Disk
+        Sandbox -->|Log approvals| SQLite[(beo_data.db)]
     end
 
-    subgraph Lưu trữ & Trợ lý [Local Disk & LLMs]
-        Disk[/Thư mục Workspace cục bộ/] <-->|Đọc/Ghi trực tiếp| Sandbox
+    subgraph Storage & Assistants [Local Disk & LLMs]
+        Disk[/Local Workspace Directory/] <-->|Direct Read/Write| Sandbox
         AgentWrap <-->|LiteLLM / Ollama SDK| LLMProviders[Cloud APIs: Gemini, Claude, GPT / Local Ollama]
     end
 
-    style Giao diện người dùng fill:#0d0e12,stroke:#1c1e21,stroke-width:2px,color:#f4f4f5
-    style Máy chủ dịch vụ fill:#090a0f,stroke:#1c1e21,stroke-width:2px,color:#f4f4f5
-    style Lưu trữ & Trợ lý fill:#121214,stroke:#1c1e21,stroke-width:2px,color:#f4f4f5
+    style User Interface fill:#0d0e12,stroke:#1c1e21,stroke-width:2px,color:#f4f4f5
+    style Service Server fill:#090a0f,stroke:#1c1e21,stroke-width:2px,color:#f4f4f5
+    style Storage & Assistants fill:#121214,stroke:#1c1e21,stroke-width:2px,color:#f4f4f5
 ```
 
 ---
 
-## 🛠️ Công nghệ sử dụng
+## 🛠️ Tech Stack
 
-Beo được xây dựng trên một bộ khung công nghệ hiện đại, tinh gọn và có tính tương thích cao:
+Beo is built on a modern, lean, and highly compatible technology stack:
 
-| Thành phần | Công nghệ tích hợp | Vai trò / Chi tiết |
+| Component | Integrated Technologies | Role / Details |
 | :--- | :--- | :--- |
-| **Backend** | Python, FastAPI, Uvicorn | API Gateway tốc độ cao, xử lý đa luồng bất đồng bộ. |
-| **LLM Gateway** | LiteLLM, Ollama SDK | Tích hợp đồng thời cả Cloud LLMs và Local LLMs chạy offline. |
-| **Database** | SQLite, SQLAlchemy | Lưu trữ metadata, nhật ký chi phí API và lịch sử phê duyệt. |
-| **Vector Search**| LanceDB (Fallback sang Keyword search) | Cơ sở dữ liệu vector cục bộ phục vụ bộ nhớ ngữ nghĩa của Agent. |
-| **Frontend** | Vite, React, TailwindCSS, Zustand | UI tối giản, mượt mà, quản lý trạng thái hiệu năng cao. |
-| **Đóng gói** | Docker, Docker Compose | Đóng gói môi trường nhất quán, chạy nhanh bằng một dòng lệnh. |
+| **Backend** | Python, FastAPI, Uvicorn | High-speed API Gateway, asynchronous multi-threading. |
+| **LLM Gateway** | LiteLLM, Ollama SDK | Concurrent integration of Cloud LLMs and offline Local LLMs. |
+| **Database** | SQLite, SQLAlchemy | Stores metadata, API cost tracking logs, and approval history. |
+| **Vector Search**| LanceDB (Fallback to Keyword search) | Local vector database serving Agent semantic memory. |
+| **Frontend** | Vite, React, TailwindCSS, Zustand | Minimalist, smooth UI with high-performance state management. |
+| **Packaging** | Docker, Docker Compose | Consistent environment packaging, single-command startup. |
 
 ---
 
-## 🚀 Hướng dẫn Cài đặt & Chạy nhanh
+## 🚀 Installation & Quick Start
 
 > [!TIP]
-> Bạn nên sử dụng **Cách 1 (Docker Compose)** để khởi động hệ thống nhanh chóng và ổn định nhất mà không cần cài đặt môi trường lập trình thủ công.
+> We recommend **Method 1 (Docker Compose)** to spin up the system quickly and stably without needing manual programming environment setups.
 
-### Cách 1: Khởi động qua Docker Compose (Khuyên dùng)
+### Method 1: Start via Docker Compose (Recommended)
 
-Yêu cầu máy tính của bạn đã cài đặt Docker và Docker Compose.
+Requires Docker and Docker Compose installed on your machine.
 
-1. **Bản sao cấu hình môi trường**:
+1. **Clone environment configuration**:
    ```bash
    cp backend/.env.example backend/.env
    ```
-2. **Cấu hình API Key**:
-   Mở file `backend/.env` bằng trình chỉnh sửa của bạn và điền khóa API mong muốn (ví dụ: `GEMINI_API_KEY`, `OPENAI_API_KEY`, hoặc cấu hình Ollama Endpoint).
-3. **Khởi chạy container**:
+2. **Configure API Keys**:
+   Open `backend/.env` with your text editor and fill in your desired API keys (e.g., `GEMINI_API_KEY`, `OPENAI_API_KEY`, or configure an Ollama Endpoint).
+3. **Launch the containers**:
    ```bash
    docker compose up --build
    ```
-4. **Truy cập hệ thống**:
-   * **Giao diện Web**: [http://localhost:3000](http://localhost:3000)
-   * **Tài liệu API Backend**: [http://localhost:8000/docs](http://localhost:8000/docs)
+4. **Access the application**:
+   * **Web Interface**: [http://localhost:3000](http://localhost:3000)
+   * **Backend API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-*Toàn bộ dữ liệu của bạn sẽ được lưu giữ an toàn tại thư mục `./workspaces` và tệp cơ sở dữ liệu `./beo_data.db` trên máy thật.*
+*All your data remains safe under the local `./workspaces` directory and the `./beo_data.db` SQLite database file on your host machine.*
 
 ---
 
-### Cách 2: Chạy cục bộ thủ công (Local Manual Setup)
+### Method 2: Local Manual Setup
 
-#### 1. Cài đặt và chạy Backend:
+#### 1. Setup and Run Backend:
 ```bash
-# Di chuyển vào thư mục backend
+# Navigate to the backend folder
 cd backend
 
-# Khởi tạo môi trường ảo Python
+# Initialize Python virtual environment
 python -m venv venv
 
-# Kích hoạt môi trường ảo
-# Trên macOS/Linux:
+# Activate virtual environment
+# On macOS/Linux:
 source venv/bin/activate
-# Trên Windows:
+# On Windows:
 .\venv\Scripts\activate
 
-# Cài đặt các thư viện dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# Cấu hình môi trường
+# Configure environment variables
 cp .env.example .env
 
-# Chạy máy chủ phát triển
+# Run development server
 uvicorn app.main:app --reload --port 8000
 ```
 
-#### 2. Cài đặt và chạy Frontend:
+#### 2. Setup and Run Frontend:
 ```bash
-# Di chuyển vào thư mục frontend
+# Navigate to the frontend folder
 cd frontend
 
-# Cài đặt các thư viện Node
+# Install Node packages
 npm install
 
-# Khởi chạy giao diện nhà phát triển
+# Start development server
 npm run dev
 ```
-Truy cập giao diện tại địa chỉ được hiển thị trên terminal (thường là [http://localhost:5173](http://localhost:5173)).
+Open the interface in your browser at the address displayed on your terminal (typically [http://localhost:5173](http://localhost:5173)).
 
 ---
 
-## 🧪 Chạy Kiểm thử Tự động (Tests)
+## 🧪 Running Automated Tests
 
-Beo tích hợp sẵn bộ suite kiểm thử tự động toàn diện để bảo đảm tính an toàn của sandbox và hoạt động chính xác của các Agent:
+Beo comes with a comprehensive suite of automated tests to ensure sandbox security and correct agent behavior:
 
 ```bash
-# Kích hoạt môi trường ảo backend
+# Activate backend virtual environment
 cd backend
-source venv/bin/activate # hoặc .\venv\Scripts\activate trên Windows
+source venv/bin/activate # or .\venv\Scripts\activate on Windows
 
-# Khởi chạy pytest
+# Run pytest
 pytest
 ```
 
 ---
 
-## 📂 Cấu trúc thư mục Workspace cục bộ
+## 📂 Local Workspace Directory Structure
 
-Khi Beo hoạt động, cấu trúc tệp tin trên đĩa cứng của bạn sẽ được tổ chức như sau:
+When Beo is active, your local hard drive files are structured as follows:
 
 ```text
 beo/
-├── beo_data.db                 # SQLite lưu log phê duyệt & metadata
-├── docker-compose.yml          # Cấu hình container Docker
-├── backend/                    # Mã nguồn FastAPI Backend
-├── frontend/                   # Giao diện React Frontend
+├── beo_data.db                 # SQLite database for approval logs & metadata
+├── docker-compose.yml          # Docker container configuration
+├── backend/                    # FastAPI Backend source code
+├── frontend/                   # React Frontend source code
 └── workspaces/
     └── <company_workspace_id>/
-        ├── .memory_db/         # LanceDB lưu vector bộ nhớ Agent
-        └── workspace/          # Thư mục Wiki chung (Company Files)
-            ├── AIM.md          # Tầm nhìn & UVP của doanh nghiệp
-            ├── OPERATIONS.md   # Cấu hình phòng ban & Nhân viên AI
-            ├── FINANCE.md      # Thiết lập ngân sách & Giới hạn API
-            └── projects/       # Thư mục quản lý các chiến dịch / dự án
+        ├── .memory_db/         # LanceDB local directory for Agent semantic memory
+        └── workspace/          # General wiki files (Shared Company Files)
+            ├── AIM.md          # Company vision & UVP
+            ├── OPERATIONS.md   # Department setups & active AI workforce
+            ├── FINANCE.md      # API budget controls & cost caps
+            └── projects/       # Directory for managing active campaigns / projects
                 └── <project_name>/
-                    ├── PRODUCT.md  # Đặc tả sản phẩm & Scope MVP
-                    └── LOG.md      # Nhật ký tiến độ chạy dự án
+                    ├── PRODUCT.md  # Product specifications & MVP scope
+                    └── LOG.md      # Active project progress log
 ```
 
 ---
 
-## 🤝 Hướng dẫn Đóng góp (Contributing)
+## 🤝 Contributing
 
-Chúng tôi rất hoan nghênh sự đóng góp từ cộng đồng để đưa **Beo** trở thành công cụ hỗ trợ solopreneur mạnh mẽ nhất!
-1. Fork dự án này.
-2. Tạo nhánh tính năng mới (`git checkout -b feature/AmazingFeature`).
-3. Commit những thay đổi của bạn (`git commit -m 'Add some AmazingFeature'`).
-4. Push lên nhánh gốc (`git push origin feature/AmazingFeature`).
-5. Mở một **Pull Request** mới giải thích chi tiết các thay đổi của bạn.
+We warmly welcome all contributions from the community to help make **Beo** the ultimate tool for solopreneurs!
+1. Fork the project.
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4. Push to the branch (`git push origin feature/AmazingFeature`).
+5. Open a **Pull Request** explaining your changes.
 
 ---
 
-## 📄 Giấy phép (License)
+## 📄 License
 
-Dự án này được cấp phép theo Giấy phép MIT - xem tệp [LICENSE](LICENSE) để biết thêm chi tiết.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 <p align="center">
-  <b>Beo OS — Vận hành doanh nghiệp triệu đô một người bằng sức mạnh tối thượng của AI cục bộ.</b>
+  <b>Beo OS — Run a million-dollar company of one with the ultimate power of local AI.</b>
 </p>
