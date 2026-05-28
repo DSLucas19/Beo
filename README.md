@@ -66,13 +66,13 @@ Here is the data flow diagram showing how components in Beo interact with each o
 
 ```mermaid
 graph TD
-    subgraph User Interface [Vite + React UI]
+    subgraph UI ["User Interface (Vite + React UI)"]
         Sidebar[Sidebar Navigation] --> MainArea[Main Workstation: Chat/Views/Wiki]
         Inbox[Inbox Approval Queue] -->|Approve/Edit/Reject| MainArea
         CmdK[Quick Command Palette Ctrl+K]
     end
 
-    subgraph Service Server [FastAPI Backend]
+    subgraph Backend ["Service Server (FastAPI Backend)"]
         Gateway[API Gateway] --> Engine[Swarm Orchestrator Engine]
         Gateway --> Watcher[Reactive Config Watcher]
         Engine --> AgentWrap[Custom Agent Wrapper]
@@ -83,14 +83,14 @@ graph TD
         Sandbox -->|Log approvals| SQLite[(beo_data.db)]
     end
 
-    subgraph Storage & Assistants [Local Disk & LLMs]
+    subgraph Storage ["Storage & Assistants (Local Disk & LLMs)"]
         Disk[/Local Workspace Directory/] <-->|Direct Read/Write| Sandbox
         AgentWrap <-->|LiteLLM / Ollama SDK| LLMProviders[Cloud APIs: Gemini, Claude, GPT / Local Ollama]
     end
 
-    style User Interface fill:#0d0e12,stroke:#1c1e21,stroke-width:2px,color:#f4f4f5
-    style Service Server fill:#090a0f,stroke:#1c1e21,stroke-width:2px,color:#f4f4f5
-    style Storage & Assistants fill:#121214,stroke:#1c1e21,stroke-width:2px,color:#f4f4f5
+    style UI fill:#0d0e12,stroke:#1c1e21,stroke-width:2px,color:#f4f4f5
+    style Backend fill:#090a0f,stroke:#1c1e21,stroke-width:2px,color:#f4f4f5
+    style Storage fill:#121214,stroke:#1c1e21,stroke-width:2px,color:#f4f4f5
 ```
 
 ---
