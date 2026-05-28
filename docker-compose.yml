@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: beo-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./workspaces:/workspaces
+      - ./beo_data.db:/beo_data.db
+      - ./backend:/backend
+      # Prevent overriding installed node_modules/venv
+      - /backend/venv
+    env_file:
+      - ./backend/.env
+    environment:
+      - BEO_ROOT=/
+      - BEO_WORKSPACES_DIR=/workspaces
+      - BEO_DATABASE_PATH=/beo_data.db
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: beo-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/frontend
+      - /frontend/node_modules
+    environment:
+      - VITE_BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: always

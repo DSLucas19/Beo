@@ -1,0 +1,533 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Instrument Sans', 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-smooth: always;
+    letter-spacing: -0.01em;
+    text-shadow: 0 0 1px rgba(255, 255, 255, 0.005);
+  }
+}
+
+/* Họa tiết địa hình mờ nhạt làm hình nền cho lớp đằng sau appBorders */
+.topography-bg {
+  background-color: #111113;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cpath d='M0 10 Q 25 15, 50 10 T 100 10 M0 30 Q 30 25, 60 35 T 100 30 M0 50 Q 20 60, 50 45 T 100 50 M0 70 Q 35 65, 70 80 T 100 70 M0 90 Q 25 95, 50 90 T 100 90' fill='none' stroke='%23ffffff' stroke-width='0.5' stroke-opacity='0.015'/%3E%3C/svg%3E");
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #252528;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #323236;
+}
+
+/* LUXURY FONTS */
+.font-display {
+  font-family: 'Instrument Sans', sans-serif;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  -webkit-font-smoothing: antialiased;
+}
+.font-sans {
+  font-family: 'Instrument Sans', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* LIQUID MERCURY MONOCHROME EFFECT KEYFRAMES */
+@keyframes lava-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes lava-wave-border {
+  0% {
+    border-radius: 16px 16px 16px 16px;
+  }
+  30% {
+    border-radius: 22px 14px 18px 16px / 16px 20px 14px 22px;
+  }
+  60% {
+    border-radius: 14px 22px 15px 18px / 18px 14px 22px 15px;
+  }
+  85% {
+    border-radius: 18px 15px 22px 14px / 14px 22px 15px 18px;
+  }
+  100% {
+    border-radius: 16px 16px 16px 16px;
+  }
+}
+
+@keyframes lava-wave-shadow {
+  0%, 100% {
+    transform: scale(1) translate(0, 0);
+  }
+  33% {
+    transform: scale(1.02) translate(1px, -1px);
+  }
+  66% {
+    transform: scale(0.98) translate(-1px, 1px);
+  }
+}
+
+/* MONOCHROME LIQUID PLATINUM UTILITIES */
+.lava-text {
+  background: linear-gradient(135deg, #ffffff, #a1a1aa, #3f3f46, #71717a, #ffffff);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: lava-flow 8s linear infinite;
+}
+
+.lava-bg {
+  background: linear-gradient(135deg, #ffffff, #a1a1aa, #27272a, #71717a, #ffffff);
+  background-size: 300% 300%;
+  animation: lava-flow 8s linear infinite;
+}
+
+/* Wrapper for the input prompt container with liquid chrome borders */
+.lava-input-wrapper {
+  position: relative;
+  z-index: 10;
+  transition: all 0.4s ease;
+}
+
+.lava-input-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  z-index: -1;
+  background: linear-gradient(135deg, #ffffff, #a1a1aa, #27272a, #71717a, #ffffff);
+  background-size: 300% 300%;
+  animation: lava-flow 8s linear infinite;
+  border-radius: 16px;
+  opacity: 0.15;
+  transition: opacity 0.4s ease, border-radius 0.4s ease;
+}
+
+.lava-input-wrapper:focus-within::before {
+  opacity: 0.8;
+  animation: lava-flow 6s linear infinite, lava-wave-border 12s ease-in-out infinite alternate;
+}
+
+.lava-input-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  z-index: -2;
+  background: linear-gradient(135deg, #ffffff, #a1a1aa, #27272a, #71717a, #ffffff);
+  background-size: 300% 300%;
+  animation: lava-flow 8s linear infinite;
+  border-radius: 16px;
+  filter: blur(12px);
+  opacity: 0;
+  transition: opacity 0.4s ease, border-radius 0.4s ease;
+}
+
+.lava-input-wrapper:focus-within::after {
+  opacity: 0.25;
+  animation: lava-flow 6s linear infinite, lava-wave-border 12s ease-in-out infinite alternate, lava-wave-shadow 9s ease-in-out infinite alternate;
+}
+
+/* Sidebar active tab monochrome glow strip */
+.lava-sidebar-active {
+  position: relative;
+}
+.lava-sidebar-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15%;
+  height: 70%;
+  width: 3px;
+  background: linear-gradient(to bottom, #ffffff, #e4e4e7, #71717a);
+  background-size: 100% 200%;
+  animation: lava-flow 4s linear infinite;
+  border-radius: 0 4px 4px 0;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+}
+
+/* Luxury button with liquid chrome glow on hover */
+.lava-btn-luxury {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  background: #1b1b1e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lava-btn-luxury:hover {
+  border-color: transparent;
+  transform: translateY(-1.5px);
+}
+
+.lava-btn-luxury::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #ffffff, #a1a1aa, #27272a, #ffffff);
+  background-size: 300% 300%;
+  animation: lava-flow 6s linear infinite;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 0;
+}
+
+.lava-btn-luxury:hover::before {
+  opacity: 0.9;
+}
+
+.lava-btn-luxury > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* SMOOTH TRANSITIONS & APPEARANCES */
+button, a, input, textarea, select, .transition-all {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* 1. USER CHAT BUBBLE ENTRANCE (Bottom-Right corner sweep) */
+@keyframes user-message-enter {
+  from {
+    opacity: 0;
+    transform: translate(24px, 16px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+.user-message-appear {
+  animation: user-message-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 2. AI CHAT BUBBLE ENTRANCE (Bottom-Left corner sweep) */
+@keyframes ai-message-enter {
+  from {
+    opacity: 0;
+    transform: translate(-24px, 16px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+.ai-message-appear {
+  animation: ai-message-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 3. MAIN PANE SWITCH (Premium Scale & Fade-in) */
+@keyframes pane-scale-fade-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.995) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.pane-fade-in {
+  animation: pane-scale-fade-enter 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 4. DETAIL PANE TRANSITION (Slide in from Right) */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.detail-pane-fade-in {
+  animation: slide-in-right 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 5. TEXT CONTENT DECAY (Pure subtle fade-in to prevent eye strain) */
+@keyframes simple-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.file-content-fade-in {
+  animation: simple-fade-in 0.4s ease-out forwards;
+}
+
+/* 6. FLOATING DYNAMIC ISLAND & PREMIUM INBOX GALLERY UTILITIES */
+.dynamic-island-glass {
+  background: rgba(15, 15, 18, 0.75);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.dynamic-island-dropdown-glass {
+  background: rgba(12, 12, 15, 0.95);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.9);
+}
+
+/* Premium Card Styles */
+.premium-card {
+  background: rgba(18, 18, 22, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.premium-card:hover {
+  background: rgba(24, 24, 30, 0.75);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Glowing outline borders for cards matching risk levels */
+.glow-card-low {
+  position: relative;
+}
+
+.glow-card-medium {
+  position: relative;
+}
+.glow-card-medium::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.7), transparent);
+  border-radius: 9999px;
+  opacity: 0.75;
+}
+
+.glow-card-high {
+  position: relative;
+}
+.glow-card-high::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.7), transparent);
+  border-radius: 9999px;
+  opacity: 0.75;
+}
+
+/* Breathing neon active status dot */
+.neon-dot-white {
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  animation: neon-pulse-white 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes neon-pulse-white {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.9);
+    box-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
+  }
+}
+
+.neon-dot-blue {
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+  animation: neon-pulse-blue 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes neon-pulse-blue {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.9);
+    box-shadow: 0 0 3px rgba(56, 189, 248, 0.3);
+  }
+}
+
+.neon-dot-red {
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+  animation: neon-pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes neon-pulse-red {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.9);
+    box-shadow: 0 0 3px rgba(239, 68, 68, 0.3);
+  }
+}
+
+/* Custom letter and word spacing for premium chat readability */
+.chat-message-text {
+  letter-spacing: -0.01em !important;
+  word-spacing: normal !important;
+}
+
+/* Global App-wide Font Size Scaling & Proportional Adjustments */
+.text-xs, .text-\[12px\], .text-\[12\.5px\] {
+  font-size: 13px !important;
+}
+
+.text-sm, .text-\[14px\] {
+  font-size: 15px !important;
+}
+
+.text-base, .text-\[16px\] {
+  font-size: 17px !important;
+}
+
+.text-lg, .text-\[18px\] {
+  font-size: 19px !important;
+}
+
+.text-xl, .text-\[20px\] {
+  font-size: 21px !important;
+}
+
+.text-2xl, .text-\[24px\] {
+  font-size: 25px !important;
+}
+
+.text-3xl, .text-\[30px\] {
+  font-size: 31px !important;
+}
+
+/* Tiny text scaling (avatar badges, labels, notes) */
+.text-\[9px\] {
+  font-size: 10px !important;
+}
+
+.text-\[10px\] {
+  font-size: 11px !important;
+}
+
+.text-\[11px\] {
+  font-size: 12px !important;
+}
+
+.text-\[13px\] {
+  font-size: 14px !important;
+}
+
+.text-\[13\.5px\] {
+  font-size: 14.5px !important;
+}
+
+.text-\[17px\] {
+  font-size: 18px !important;
+}
+
+/* Ensure actual code, terminal blocks and monospaced inputs preserve their monospace font */
+pre, code, pre.font-mono, code.font-mono, textarea.font-mono, input.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+
+/* Swap UI text elements using font-mono or font-mono combined with bold weights to use the Instrument Sans font (Beo font) */
+span.font-mono,
+label.font-mono,
+button.font-mono,
+h1.font-mono,
+h2.font-mono,
+h3.font-mono,
+h4.font-mono,
+div.font-mono {
+  font-family: 'Instrument Sans', 'Inter', system-ui, -apple-system, sans-serif !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* Sidebar Subtab Accordion Smooth Slide-Down & Fade-in Transition */
+@keyframes subtab-fade-in-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.subtab-entrance {
+  animation: subtab-fade-in-slide 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Glassmorphism Stacked Layers (Purely demarcated by soft shadows, no borders) */
+.glass-sidebar {
+  background: rgba(13, 14, 18, 0.65) !important;
+  backdrop-filter: blur(24px) saturate(120%) !important;
+  border: none !important;
+  box-shadow: 10px 0 30px -10px rgba(0, 0, 0, 0.5) !important;
+}
+
+.glass-pane {
+  background: rgba(11, 12, 15, 0.3) !important;
+  backdrop-filter: blur(24px) saturate(110%) !important;
+  border: none !important;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.7) !important;
+}
+
+.glass-sub-sidebar {
+  background: rgba(8, 9, 12, 0.45) !important;
+  backdrop-filter: blur(20px) saturate(120%) !important;
+  border: none !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.65) !important;
+}
+
+.glass-content-card {
+  background: rgba(12, 14, 20, 0.65) !important;
+  backdrop-filter: blur(16px) saturate(120%) !important;
+  border: none !important;
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.8) !important;
+}
+
+
+
+
+
+
