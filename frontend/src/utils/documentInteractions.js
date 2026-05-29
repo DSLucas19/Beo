@@ -1,4 +1,4 @@
-const KNOWN_TEXT_EXTENSIONS = new Set(['md', 'txt', 'csv', 'json', 'yaml', 'yml', 'log'])
+const KNOWN_TEXT_EXTENSIONS = new Set(['md', 'txt', 'csv', 'json', 'yaml', 'yml', 'log', 'html', 'htm'])
 
 export const normalizeDocumentName = (name) => {
   const cleaned = String(name || '')

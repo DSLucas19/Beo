@@ -22,6 +22,35 @@ import {
   TableIcon,
   PresentationIcon
 } from 'lucide-react'
+import DocPreviewer from './DocPreviewer'
+
+// Reusable character-by-character typing simulation component
+function StreamingText({ text, speed = 12 }) {
+  const [displayedText, setDisplayedText] = useState('')
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    setDisplayedText('')
+    setIndex(0)
+  }, [text])
+
+  useEffect(() => {
+    if (index < text.length) {
+      const timer = setTimeout(() => {
+        setDisplayedText(prev => prev + text.charAt(index))
+        setIndex(prev => prev + 1)
+      }, speed)
+      return () => clearTimeout(timer)
+    }
+  }, [index, text, speed])
+
+  return (
+    <span className="font-mono whitespace-pre-wrap leading-relaxed">
+      {displayedText}
+      {index < text.length && <span className="inline-block w-1.5 h-3 ml-0.5 bg-emerald-400 animate-pulse align-middle" />}
+    </span>
+  )
+}
 
 export default function SwarmPane() {
   const {
@@ -30,7 +59,10 @@ export default function SwarmPane() {
     fetchSwarms,
     fetchSwarmDetails,
     deploySwarm,
-    files
+    retrySwarmMember,
+    files,
+    saveFileContent,
+    workspaceId
   } = useWorkspaceStore()
 
   const [selectedSwarmId, setSelectedSwarmId] = useState(null)
@@ -38,12 +70,17 @@ export default function SwarmPane() {
   const [newSwarmName, setNewSwarmName] = useState('')
   const [executionMode, setExecutionMode] = useState('sequential') // 'sequential', 'parallel', 'collaborative'
   const [newSwarmMembers, setNewSwarmMembers] = useState([
-    { role: 'Planner', task: 'Phác thảo lộ trình sản phẩm Cafe MVP và phân tích thị trường.' },
-    { role: 'Developer', task: 'Thiết kế slide kỹ thuật giới thiệu kiến trúc Cafe MVP (.slide.md).' },
-    { role: 'Marketer', task: 'Soạn thảo bảng dự toán ngân sách marketing (.csv).' }
+    { role: 'COO', task: 'Phác thảo lộ trình sản phẩm Cafe MVP và phân tích thị trường.' },
+    { role: 'CTO', task: 'Thiết kế slide kỹ thuật giới thiệu kiến trúc Cafe MVP (.slide.md).' },
+    { role: 'CMO', task: 'Soạn thảo bảng kế hoạch marketing (.csv).' }
   ])
   const [expandedMemberId, setExpandedMemberId] = useState(null)
   const [activePreviewFile, setActivePreviewFile] = useState(null)
+
+  // Swarm view mode toggle ('chat' | 'steps')
+  const [swarmViewMode, setSwarmViewMode] = useState('chat')
+  const [previewContent, setPreviewContent] = useState('')
+  const [loadingPreview, setLoadingPreview] = useState(false)
 
   // Fetch swarms list on mount
   useEffect(() => {
@@ -70,6 +107,31 @@ export default function SwarmPane() {
     }
     return () => clearInterval(timer)
   }, [selectedSwarmId])
+
+  // Fetch file content for preview when activePreviewFile changes
+  useEffect(() => {
+    if (activePreviewFile) {
+      const load = async () => {
+        setLoadingPreview(true)
+        try {
+          const res = await fetch(`http://localhost:8000/api/workspaces/${workspaceId || 'beo_corp'}/files/${activePreviewFile}`)
+          if (res.ok) {
+            const d = await res.json()
+            setPreviewContent(d.content || 'Empty file.')
+          } else {
+            setPreviewContent('Failed to fetch file content.')
+          }
+        } catch (e) {
+          setPreviewContent('Error loading content.')
+        } finally {
+          setLoadingPreview(false)
+        }
+      }
+      load()
+    } else {
+      setPreviewContent('')
+    }
+  }, [activePreviewFile, workspaceId])
 
   const handleSelectSwarm = (id) => {
     setSelectedSwarmId(id)
@@ -103,8 +165,8 @@ export default function SwarmPane() {
       setNewSwarmName('')
       setExecutionMode('sequential')
       setNewSwarmMembers([
-        { role: 'Planner', task: 'Phác thảo lộ trình sản phẩm Cafe MVP.' },
-        { role: 'Developer', task: 'Thiết kế slide kỹ thuật giới thiệu kiến trúc Cafe MVP (.slide.md).' }
+        { role: 'COO', task: 'Phác thảo lộ trình sản phẩm Cafe MVP.' },
+        { role: 'CTO', task: 'Thiết kế slide kỹ thuật giới thiệu kiến trúc Cafe MVP (.slide.md).' }
       ])
       handleSelectSwarm(result.swarm_id)
     }
@@ -135,38 +197,55 @@ export default function SwarmPane() {
     if (!details || !details.members) return []
     const found = []
     
-    // Scan logs and results for file names written
     details.members.forEach(m => {
-      if (m.logs) {
-        const matches = m.logs.match(/Đã tự động ghi file: ([a-zA-Z0-9_\-\.\/]+)/g)
-        if (matches) {
-          matches.forEach(match => {
-            const fName = match.replace('Đã tự động ghi file: ', '').trim()
-            if (!found.includes(fName)) found.push(fName)
-          })
-        }
-      }
-      if (m.result) {
-        const jsonMatch = m.result.match(/"name":\s*"([^"]+)"/g)
-        if (jsonMatch) {
-          jsonMatch.forEach(match => {
-            const fName = match.replace(/"name":\s*"/, '').replace('"', '').trim()
-            if (!found.includes(fName)) found.push(fName)
-          })
-        }
-      }
+      const memberDeliverables = getMemberDeliverables(m)
+      memberDeliverables.forEach(f => {
+        if (!found.includes(f)) found.push(f)
+      })
     })
+    return found
+  }
+
+  // Extract deliverables for a single swarm member
+  const getMemberDeliverables = (m) => {
+    const found = []
+    if (m.logs) {
+      const matches = m.logs.match(/Đã tự động ghi file: ([a-zA-Z0-9_\-\.\/]+)/g)
+      if (matches) {
+        matches.forEach(match => {
+          const fName = match.replace('Đã tự động ghi file: ', '').trim()
+          if (!found.includes(fName)) found.push(fName)
+        })
+      }
+      const matchSlide = m.logs.match(/Đã tự động tạo slides: ([a-zA-Z0-9_\-\.\/]+)/g)
+      if (matchSlide) {
+        matchSlide.forEach(match => {
+          const fName = match.replace('Đã tự động tạo slides: ', '').trim()
+          if (!found.includes(fName)) found.push(fName)
+        })
+      }
+    }
+    if (m.result) {
+      const jsonMatch = m.result.match(/"name":\s*"([^"]+)"/g)
+      if (jsonMatch) {
+        jsonMatch.forEach(match => {
+          const fName = match.replace(/"name":\s*"/, '').replace('"', '').trim()
+          if (!found.includes(fName)) found.push(fName)
+        })
+      }
+    }
     return found
   }
 
   // Helper to color-code agents in discussion
   const getAgentStyles = (role) => {
     const lRole = role.toLowerCase()
-    if (lRole.includes('planner')) return { bg: 'bg-indigo-500/10', border: 'border-indigo-500/25', text: 'text-indigo-400', iconColor: 'text-indigo-300' }
-    if (lRole.includes('developer') || lRole.includes('engineer')) return { bg: 'bg-emerald-500/10', border: 'border-emerald-500/25', text: 'text-emerald-400', iconColor: 'text-emerald-300' }
-    if (lRole.includes('market')) return { bg: 'bg-amber-500/10', border: 'border-amber-500/25', text: 'text-amber-400', iconColor: 'text-amber-300' }
-    if (lRole.includes('finance') || lRole.includes('legal')) return { bg: 'bg-violet-500/10', border: 'border-violet-500/25', text: 'text-violet-400', iconColor: 'text-violet-300' }
-    return { bg: 'bg-rose-500/10', border: 'border-rose-500/25', text: 'text-rose-400', iconColor: 'text-rose-300' }
+    if (lRole.includes('coo') || lRole.includes('planner')) return { bg: 'bg-indigo-500/10', border: 'border-indigo-500/25', text: 'text-indigo-400', iconColor: 'text-indigo-300' }
+    if (lRole.includes('cto') || lRole.includes('developer') || lRole.includes('engineer') || lRole.includes('coder') || lRole.includes('tester') || lRole.includes('debugger')) return { bg: 'bg-emerald-500/10', border: 'border-emerald-500/25', text: 'text-emerald-400', iconColor: 'text-emerald-300' }
+    if (lRole.includes('cmo') || lRole.includes('market') || lRole.includes('social') || lRole.includes('copywriter')) return { bg: 'bg-pink-500/10', border: 'border-pink-500/25', text: 'text-pink-400', iconColor: 'text-pink-300' }
+    if (lRole.includes('cfo') || lRole.includes('finance') || lRole.includes('bookkeeper')) return { bg: 'bg-amber-500/10', border: 'border-amber-500/25', text: 'text-amber-400', iconColor: 'text-amber-300' }
+    if (lRole.includes('cpo') || lRole.includes('product')) return { bg: 'bg-cyan-500/10', border: 'border-cyan-500/25', text: 'text-cyan-400', iconColor: 'text-cyan-300' }
+    return { bg: 'bg-zinc-500/10', border: 'border-white/[0.04]', text: 'text-zinc-400', iconColor: 'text-zinc-400' }
   }
 
   // Visual Topology Graph Renderer
@@ -255,87 +334,6 @@ export default function SwarmPane() {
     )
   }
 
-  // Custom Preview Renderer for generated files
-  const renderFilePreview = () => {
-    if (!activePreviewFile) return null
-    const fPath = activePreviewFile
-    
-    // Find file from state
-    const foundFile = files.find(f => f.path === fPath || f.path.endsWith(fPath))
-    
-    const [previewContent, setPreviewContent] = useState('Loading preview...')
-    
-    useEffect(() => {
-      const load = async () => {
-        try {
-          const res = await fetch(`http://localhost:8000/api/workspaces/beo_corp/files/${fPath}`)
-          if (res.ok) {
-            const d = await res.json()
-            setPreviewContent(d.content || 'Empty file.')
-          } else {
-            setPreviewContent('Failed to fetch file content.')
-          }
-        } catch (e) {
-          setPreviewContent('Error loading content.')
-        }
-      }
-      load()
-    }, [fPath])
-
-    const isCSV = fPath.endsWith('.csv')
-    const isSlide = fPath.includes('.slide.md')
-
-    return (
-      <div className="absolute inset-0 z-20 flex flex-col bg-zinc-950/98 backdrop-blur-md border border-white/[0.08] rounded-xl overflow-hidden p-6 text-left">
-        <div className="flex justify-between items-center border-b border-white/[0.05] pb-4 mb-4 select-none">
-          <div className="flex items-center gap-2">
-            {isCSV ? <TableIcon className="w-4 h-4 text-amber-400" /> : isSlide ? <PresentationIcon className="w-4 h-4 text-emerald-400" /> : <FileTextIcon className="w-4 h-4 text-sky-400" />}
-            <span className="text-sm font-semibold text-white font-mono">{fPath}</span>
-          </div>
-          <button
-            onClick={() => setActivePreviewFile(null)}
-            className="text-xs text-zinc-400 hover:text-white"
-          >
-            Close Preview
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto font-sans leading-relaxed text-zinc-300 text-xs">
-          {isCSV ? (
-            <div className="border border-white/[0.05] rounded-xl overflow-hidden bg-zinc-900/40">
-              <table className="min-w-full divide-y divide-white/[0.04] text-[11px] font-mono">
-                <tbody className="divide-y divide-white/[0.04]">
-                  {previewContent.split('\n').map((row, rIdx) => (
-                    <tr key={rIdx} className={rIdx === 0 ? 'bg-white/[0.02]' : ''}>
-                      {row.split(',').map((cell, cIdx) => (
-                        <td key={cIdx} className="px-3 py-2 border-r border-white/[0.03] text-zinc-300">
-                          {cell}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : isSlide ? (
-            <div className="space-y-6">
-              {previewContent.split('---').map((slide, sIdx) => (
-                <div key={sIdx} className="p-6 bg-zinc-900/60 border border-white/[0.05] rounded-2xl relative shadow-md">
-                  <span className="absolute top-4 right-4 text-[9px] font-mono text-zinc-500">Slide {sIdx + 1}</span>
-                  <pre className="whitespace-pre-wrap font-sans text-xs text-zinc-200">{slide.trim()}</pre>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <pre className="bg-black/60 p-4 rounded-xl border border-white/[0.04] font-mono text-xs text-zinc-300 whitespace-pre-wrap select-all leading-relaxed">
-              {previewContent}
-            </pre>
-          )}
-        </div>
-      </div>
-    )
-  }
-
   const deliverables = activeSwarmDetails ? getSwarmDeliverables(activeSwarmDetails) : []
 
   return (
@@ -396,20 +394,45 @@ export default function SwarmPane() {
       <div className="flex-1 my-3 mr-3 ml-1.5 rounded-2xl glass-content-card flex overflow-hidden relative">
         {activeSwarmDetails ? (
           <div className="flex-1 flex h-full overflow-hidden">
-            {/* Center Area: Logs, Topology, Chat Bubbles (70% width) */}
+            {/* Center Area: Logs, Topology, Chat Bubbles/Steps (70% width) */}
             <div className="flex-1 flex flex-col h-full border-r border-border-muted/20 overflow-hidden">
               {/* Swarm Job Detail Header */}
-              <div className="p-6 border-b border-border-muted/20 flex flex-col gap-3">
+              <div className="p-6 border-b border-border-muted/20 flex flex-col gap-3 bg-zinc-950/20">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <h1 className="text-lg font-bold font-display text-white tracking-tight truncate">{activeSwarmDetails.name}</h1>
-                    <p className="text-[11px] text-zinc-500 mt-0.5">Created on {new Date(activeSwarmDetails.created_at).toLocaleString()}</p>
+                    <p className="text-[11px] text-zinc-500 mt-0.5 font-mono">Created on {new Date(activeSwarmDetails.created_at).toLocaleString()}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(activeSwarmDetails.status)}
-                    <span className={`text-[9px] font-mono border px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${getStatusBadgeClass(activeSwarmDetails.status)}`}>
-                      {activeSwarmDetails.status}
-                    </span>
+                  
+                  <div className="flex items-center gap-3 select-none">
+                    {/* View Mode Toggle Segment */}
+                    <div className="flex border border-white/[0.08] rounded-lg p-0.5 bg-black/40">
+                      <button
+                        onClick={() => setSwarmViewMode('chat')}
+                        className={`px-3 py-1 rounded-md text-[10px] font-semibold transition-all flex items-center gap-1 ${
+                          swarmViewMode === 'chat' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
+                        }`}
+                      >
+                        <MessageSquareIcon className="w-3.5 h-3.5" />
+                        <span>Live Chat</span>
+                      </button>
+                      <button
+                        onClick={() => setSwarmViewMode('steps')}
+                        className={`px-3 py-1 rounded-md text-[10px] font-semibold transition-all flex items-center gap-1 ${
+                          swarmViewMode === 'steps' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
+                        }`}
+                      >
+                        <CpuIcon className="w-3.5 h-3.5" />
+                        <span>Steps log</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(activeSwarmDetails.status)}
+                      <span className={`text-[9px] font-mono border px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${getStatusBadgeClass(activeSwarmDetails.status)}`}>
+                        {activeSwarmDetails.status}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -429,105 +452,261 @@ export default function SwarmPane() {
               </div>
 
               {/* Swarm details/topologies and logs */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {/* Visual Topology Render */}
                 {renderTopology(activeSwarmDetails.execution_mode, activeSwarmDetails.members)}
 
-                {/* Swarm Multi-Agent Debate chat bubbles (Collaborative Mode) */}
-                {activeSwarmDetails.execution_mode === 'collaborative' && activeSwarmDetails.discussion && (
-                  <div className="space-y-4">
-                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest flex items-center gap-1.5"><MessageSquareIcon className="w-3.5 h-3.5" /> Collaborative Swarm Debate log</div>
-                    <div className="space-y-3">
-                      {activeSwarmDetails.discussion.map((msg, idx) => {
-                        const styles = getAgentStyles(msg.sender)
+                {/* VIEW 1: LIVE CHAT STREAM */}
+                {swarmViewMode === 'chat' ? (
+                  <div className="space-y-6">
+                    {/* Objectives Card */}
+                    <div className="p-4 rounded-xl border border-white/[0.04] bg-zinc-950/20 text-left space-y-2 select-text">
+                      <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                        <SparklesIcon className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>Swarm Active Mission Objectives</span>
+                      </div>
+                      <p className="text-xs text-zinc-300 font-medium">
+                        Swarm operation executes a series of tasks concurrently or sequentially to deliver project components.
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {activeSwarmDetails.members?.map((m, idx) => {
+                          const styles = getAgentStyles(m.role)
+                          return (
+                            <span 
+                              key={idx} 
+                              className={`text-[9px] font-mono border px-2 py-0.5 rounded-full capitalize font-semibold ${styles.bg} ${styles.border} ${styles.text}`}
+                            >
+                              @{m.role}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Chat Stream thread */}
+                    <div className="space-y-4">
+                      {/* Render collaborative logs if exist */}
+                      {activeSwarmDetails.execution_mode === 'collaborative' && activeSwarmDetails.discussion && (
+                        <div className="space-y-4">
+                          {activeSwarmDetails.discussion.map((msg, idx) => {
+                            const styles = getAgentStyles(msg.sender)
+                            return (
+                              <div key={idx} className="flex gap-3 items-start select-text text-left ai-message-appear">
+                                <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-[10px] font-bold uppercase shrink-0 font-mono ${styles.bg} ${styles.border} ${styles.text} shadow-md`}>
+                                  {msg.sender.substring(0, 3)}
+                                </div>
+                                <div className={`flex-1 p-4 rounded-2xl border flex flex-col gap-1.5 ${styles.bg} ${styles.border} shadow-sm`}>
+                                  <div className="flex items-center justify-between">
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${styles.text}`}>{msg.sender}</span>
+                                    <span className="text-[9px] text-zinc-600 font-mono">Consensus Group</span>
+                                  </div>
+                                  <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* Render standard step progression as bubbles */}
+                      {activeSwarmDetails.execution_mode !== 'collaborative' && activeSwarmDetails.members?.map((member, idx) => {
+                        const styles = getAgentStyles(member.role)
+                        const isRunning = member.status === 'running'
+                        const isDone = member.status === 'completed'
+                        const isFailed = member.status === 'failed'
+                        const isWaiting = member.status === 'waiting_approval'
+
+                        if (member.status === 'pending') return null
+
+                        const memberFiles = getMemberDeliverables(member)
+
                         return (
-                          <div key={idx} className={`p-4 rounded-2xl border text-left flex flex-col gap-1.5 ${styles.bg} ${styles.border}`}>
-                            <div className="flex items-center justify-between">
-                              <span className={`text-[10px] font-bold uppercase tracking-wider ${styles.text}`}>{msg.sender}</span>
-                              <span className="text-[9px] text-zinc-600 font-mono">Turn {idx + 1}</span>
+                          <div key={member.id} className="flex gap-3 items-start select-text text-left ai-message-appear">
+                            {/* Round Avatar */}
+                            <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-[10px] font-black uppercase shrink-0 font-mono ${styles.bg} ${styles.border} ${styles.text} ${isRunning ? 'animate-pulse ring-2 ring-white/10' : ''} shadow-md`}>
+                              {member.role.substring(0, 3)}
                             </div>
-                            <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+
+                            <div className={`flex-1 p-4 rounded-2xl border flex flex-col gap-1.5 max-w-[85%] ${
+                              isRunning 
+                                ? 'bg-zinc-900/60 border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.02)]' 
+                                : isFailed 
+                                  ? 'bg-rose-500/5 border-rose-500/10' 
+                                  : `${styles.bg} ${styles.border}`
+                            } shadow-sm`}>
+                              <div className="flex items-center justify-between">
+                                <span className={`text-[10px] font-bold uppercase tracking-wider ${styles.text}`}>{member.role}</span>
+                                <div className="flex items-center gap-1.5 select-none">
+                                  {isDone && <span className="text-[8px] font-mono font-bold text-emerald-400 uppercase bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">completed</span>}
+                                  {isFailed && (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[8px] font-mono font-bold text-rose-400 uppercase bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded">failed</span>
+                                      <button
+                                        onClick={() => retrySwarmMember(activeSwarmDetails.id, member.id)}
+                                        className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/35 hover:text-white transition-all cursor-pointer flex items-center gap-0.5"
+                                      >
+                                        Retry
+                                      </button>
+                                    </div>
+                                  )}
+                                  {isWaiting && <span className="text-[8px] font-mono font-bold text-amber-400 uppercase bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded animate-pulse">waiting approval</span>}
+                                  {isRunning && <span className="text-[8px] font-mono font-bold text-white uppercase bg-white/10 border border-white/20 px-1.5 py-0.5 rounded animate-pulse">typing...</span>}
+                                </div>
+                              </div>
+
+                              {/* Task header */}
+                              <div className="text-[10px] text-zinc-500 italic font-sans border-b border-white/[0.02] pb-1 select-none">
+                                Task: {member.task}
+                              </div>
+
+                              {/* Bubble Message Stream Content */}
+                              <div className="text-xs text-zinc-300 leading-relaxed font-sans">
+                                {isRunning ? (
+                                  <div className="space-y-2 mt-1">
+                                    <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-mono select-none">
+                                      <Loader2Icon className="w-3.5 h-3.5 animate-spin text-zinc-500" />
+                                      <span>Drafting results and writing code...</span>
+                                    </div>
+                                    <pre className="bg-black/60 border border-white/[0.04] p-3 rounded-xl text-[10.5px] text-emerald-400/90 whitespace-pre-wrap font-mono leading-relaxed shadow-inner">
+                                      <StreamingText text={member.logs || `[Swarm Core] Instantiating agent process for role: ${member.role}...\nRunning command execution loop on workspace root...`} />
+                                    </pre>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-3">
+                                    {member.result ? (
+                                      <p className="whitespace-pre-wrap">{member.result}</p>
+                                    ) : (
+                                      <p className="text-zinc-500 italic">No output result recorded.</p>
+                                    )}
+
+                                    {/* Inline deliverables previews */}
+                                    {memberFiles.length > 0 && (
+                                      <div className="pt-2 grid grid-cols-2 gap-2 select-none">
+                                        {memberFiles.map((file, fIdx) => {
+                                          const isCSV = file.endsWith('.csv')
+                                          const isSlide = file.includes('.slide.md')
+                                          return (
+                                            <button
+                                              key={fIdx}
+                                              onClick={() => setActivePreviewFile(file)}
+                                              className="p-2.5 rounded-xl border border-white/[0.04] bg-black/40 hover:bg-black/80 hover:border-white/10 text-left flex items-start gap-2.5 transition-all shadow-sm"
+                                            >
+                                              {isCSV ? <TableIcon className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" /> : isSlide ? <PresentationIcon className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" /> : <FileTextIcon className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />}
+                                              <div className="min-w-0">
+                                                <span className="text-[10px] font-semibold text-white truncate block font-mono">{file}</span>
+                                                <span className="text-[8.5px] text-zinc-500 mt-0.5 font-mono capitalize">
+                                                  {isCSV ? 'CSV Spreadsheet' : isSlide ? 'Slide presentation' : 'Markdown Doc'}
+                                                </span>
+                                              </div>
+                                            </button>
+                                          )
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         )
                       })}
+
+                      {/* General executing indicator at bottom */}
+                      {activeSwarmDetails.status === 'running' && (
+                        <div className="flex gap-2.5 items-center select-none text-[10px] font-mono text-zinc-500 pl-11">
+                          <Loader2Icon className="w-3.5 h-3.5 animate-spin" />
+                          <span>Swarm execution engine is running...</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
-
-                {/* Standard Swarm Steps details */}
-                <div className="space-y-3">
-                  <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest flex items-center gap-1.5"><CpuIcon className="w-3.5 h-3.5" /> Swarm execution logs & steps</div>
-                  {activeSwarmDetails.members?.map((member, index) => {
-                    const isExpanded = expandedMemberId === member.id
-                    const isRunning = member.status === 'running'
-                    
-                    return (
-                      <div
-                        key={member.id}
-                        className={`border rounded-xl bg-background-card/40 transition-all ${
-                          isRunning 
-                            ? 'border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.03)]'
-                            : 'border-white/[0.04]'
-                        }`}
-                      >
-                        <button
-                          onClick={() => setExpandedMemberId(isExpanded ? null : member.id)}
-                          className="w-full flex items-center justify-between p-4 text-left"
+                ) : (
+                  // VIEW 2: ORIGINAL STEPS ACCORDION DETAILS
+                  <div className="space-y-3">
+                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest flex items-center gap-1.5"><CpuIcon className="w-3.5 h-3.5" /> Swarm execution logs & steps</div>
+                    {activeSwarmDetails.members?.map((member, index) => {
+                      const isExpanded = expandedMemberId === member.id
+                      const isRunning = member.status === 'running'
+                      
+                      return (
+                        <div
+                          key={member.id}
+                          className={`border rounded-xl bg-background-card/40 transition-all ${
+                            isRunning 
+                              ? 'border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.03)]'
+                              : 'border-white/[0.04]'
+                          }`}
                         >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-7 h-7 rounded-lg bg-white/[0.05] border border-white/[0.07] flex items-center justify-center shrink-0">
-                              <UserIcon className="w-3.5 h-3.5 text-zinc-400" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-mono text-zinc-500">Step {index + 1}</span>
-                                <span className="text-xs font-semibold text-white truncate">{member.role}</span>
+                          <button
+                            onClick={() => setExpandedMemberId(isExpanded ? null : member.id)}
+                            className="w-full flex items-center justify-between p-4 text-left"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-7 h-7 rounded-lg bg-white/[0.05] border border-white/[0.07] flex items-center justify-center shrink-0">
+                                <UserIcon className="w-3.5 h-3.5 text-zinc-400" />
                               </div>
-                              <p className="text-[11px] text-zinc-500 truncate mt-0.5">{member.task}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {getStatusIcon(member.status)}
-                            {isExpanded ? (
-                              <ChevronDownIcon className="w-4 h-4 text-zinc-500" />
-                            ) : (
-                              <ChevronRightIcon className="w-4 h-4 text-zinc-500" />
-                            )}
-                          </div>
-                        </button>
-
-                        {isExpanded && (
-                          <div className="px-4 pb-4 border-t border-white/[0.03] pt-4 space-y-4">
-                            <div>
-                              <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-1">Assigned Task</div>
-                              <p className="text-xs text-white leading-relaxed">{member.task}</p>
-                            </div>
-
-                            {member.logs && (
-                              <div>
-                                <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                                  <TerminalIcon className="w-3 h-3" /> Agent Execution Logs
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-mono text-zinc-500">Step {index + 1}</span>
+                                  <span className="text-xs font-semibold text-white truncate">{member.role}</span>
                                 </div>
-                                <pre className="bg-black/80 border border-white/[0.04] p-3.5 rounded-lg text-[11px] font-mono text-emerald-400/90 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed shadow-inner">
-                                  {member.logs}
-                                </pre>
+                                <p className="text-[11px] text-zinc-500 truncate mt-0.5">{member.task}</p>
                               </div>
-                            )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {member.status === 'failed' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    retrySwarmMember(activeSwarmDetails.id, member.id);
+                                  }}
+                                  className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/35 hover:text-white transition-all cursor-pointer"
+                                >
+                                  Retry
+                                </button>
+                              )}
+                              {getStatusIcon(member.status)}
+                              {isExpanded ? (
+                                <ChevronDownIcon className="w-4 h-4 text-zinc-500" />
+                              ) : (
+                                <ChevronRightIcon className="w-4 h-4 text-zinc-500" />
+                              )}
+                            </div>
+                          </button>
 
-                            {member.result && (
+                          {isExpanded && (
+                            <div className="px-4 pb-4 border-t border-white/[0.03] pt-4 space-y-4">
                               <div>
-                                <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-1">Output Result</div>
-                                <div className="bg-zinc-900/60 border border-white/[0.03] p-3.5 rounded-lg text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
-                                  {member.result}
-                                </div>
+                                <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-1">Assigned Task</div>
+                                <p className="text-xs text-white leading-relaxed">{member.task}</p>
                               </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+
+                              {member.logs && (
+                                <div>
+                                  <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                    <TerminalIcon className="w-3 h-3" /> Agent Execution Logs
+                                  </div>
+                                  <pre className="bg-black/80 border border-white/[0.04] p-3.5 rounded-lg text-[11px] font-mono text-emerald-400/90 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed shadow-inner">
+                                    {member.logs}
+                                  </pre>
+                                </div>
+                              )}
+
+                              {member.result && (
+                                <div>
+                                  <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-1">Output Result</div>
+                                  <div className="bg-zinc-900/60 border border-white/[0.03] p-3.5 rounded-lg text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                                    {member.result}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -552,7 +731,7 @@ export default function SwarmPane() {
                       <button
                         key={fIdx}
                         onClick={() => setActivePreviewFile(file)}
-                        className="w-full p-2.5 rounded-xl border border-white/[0.03] bg-zinc-900/40 hover:bg-zinc-900 hover:border-white/10 text-left flex items-start gap-2.5 transition-all"
+                        className="w-full p-2.5 rounded-xl border border-white/[0.03] bg-zinc-900/40 hover:bg-zinc-900 hover:border-white/10 text-left flex items-start gap-2.5 transition-all shadow-sm"
                       >
                         {isCSV ? <TableIcon className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" /> : isSlide ? <PresentationIcon className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" /> : <FileTextIcon className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />}
                         <div className="min-w-0">
@@ -567,8 +746,21 @@ export default function SwarmPane() {
                 </div>
               )}
 
-              {/* Render Preview Window Overlay */}
-              {renderFilePreview()}
+              {/* Render Premium Preview Window Overlay */}
+              {activePreviewFile && (
+                <DocPreviewer
+                  filePath={activePreviewFile}
+                  content={previewContent}
+                  onSave={async (newContent) => {
+                    const ok = await saveFileContent(activePreviewFile, newContent)
+                    if (ok) {
+                      setPreviewContent(newContent)
+                    }
+                  }}
+                  onClose={() => setActivePreviewFile(null)}
+                  workspaceId={workspaceId}
+                />
+              )}
             </div>
           </div>
         ) : (
@@ -672,7 +864,7 @@ export default function SwarmPane() {
                             type="text"
                             value={member.role}
                             onChange={(e) => handleMemberChange(index, 'role', e.target.value)}
-                            placeholder="Agent Role (e.g. Marketer)"
+                            placeholder="Agent Role (e.g. CMO)"
                             className="w-full bg-zinc-950 border border-white/[0.05] rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-white/20"
                           />
                         </div>

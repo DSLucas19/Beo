@@ -89,7 +89,7 @@ Kỹ thuật cao.
         
         assert len(pending_items) == 1
         item = pending_items[0]
-        assert item.file_path == "devops"
+        assert item.file_path == "secretary:devops"
         assert item.risk_level == "MEDIUM"
         assert "devops" in item.proposed_content
         

@@ -1,0 +1,19 @@
+{
+  "name": "beo-backend-renderers",
+  "version": "1.0.0",
+  "description": "Node.js renderers for Beo PowerPoint and PDF export capabilities",
+  "main": "app/slides/html2pptx_runner.js",
+  "scripts": {
+    "postinstall": "patch-package"
+  },
+  "dependencies": {
+    "dom-to-pptx": "1.1.5",
+    "patch-package": "^8.0.1",
+    "playwright": "^1.40.0",
+    "pptxgenjs": "^3.12.0",
+    "sharp": "^0.33.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

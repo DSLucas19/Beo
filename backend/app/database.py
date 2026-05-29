@@ -53,8 +53,14 @@ class SwarmMember(Base):
     result = Column(Text, nullable=True)
     logs = Column(Text, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Cột Heartbeat & Nudge
+    last_heartbeat = Column(DateTime, nullable=True)
+    heartbeat_status = Column(String(50), nullable=True)
+    nudge_count = Column(Integer, default=0)
 
     swarm_job = relationship("SwarmJob", back_populates="members")
+
 
 class APIKey(Base):
     __tablename__ = "api_keys"
@@ -76,6 +82,7 @@ class ChatMessage(Base):
     message = Column(Text, nullable=False)
     channel = Column(String(50), default="secretary")
     session_id = Column(String(100), default="default") # Cột session_id mới
+    attachments = Column(Text, nullable=True) # JSON list of image/attachment paths
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     workspace = relationship("Workspace", back_populates="messages")
@@ -109,6 +116,11 @@ class WorkflowStep(Base):
     error_log = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Cột Heartbeat & Nudge
+    last_heartbeat = Column(DateTime, nullable=True)
+    heartbeat_status = Column(String(50), nullable=True)
+    nudge_count = Column(Integer, default=0)
 
     workspace = relationship("Workspace", back_populates="workflow_steps")
 
@@ -143,12 +155,18 @@ class AgentConfig(Base):
     id = Column(Integer, primary_key=True, index=True)
     workspace_id = Column(String(50), ForeignKey("workspaces.id"), nullable=False)
     role = Column(String(50), nullable=False) # e.g. "secretary", "planner", "developer", "marketer", "finance"
+    name = Column(String(100), nullable=True) # Display name for custom employees
+    parent_role = Column(String(50), nullable=True) # The parent C-Suite role managing this employee
+    team_id = Column(String(100), nullable=True) # Custom team identifier
+    is_leader = Column(Boolean, default=False) # True if this employee is the team leader
+    role_type = Column(String(50), default="c_suite") # "c_suite" or "employee"
     model = Column(String(100), default="gemini/gemini-1.5-flash")
     is_active = Column(Boolean, default=True)
     enabled_skills = Column(Text, default="[]") # JSON list of skill strings e.g. ["read_file", "write_file", "run_command", "send_email"]
     enabled_mcp_servers = Column(Text, default="[]") # JSON list of mcp server names e.g. ["slack", "github"]
     soul_path = Column(String(255), nullable=True)
     personality_path = Column(String(255), nullable=True)
+    moral_path = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     workspace = relationship("Workspace", back_populates="agent_configs")
@@ -156,7 +174,7 @@ class AgentConfig(Base):
 def init_db():
     """Khởi tạo toàn bộ bảng dữ liệu và thực hiện di trú tự động"""
     Base.metadata.create_all(bind=engine)
-    # Tự động di trú (migration) thêm cột session_id nếu chưa có
+    # Tự động di trú (migration) thêm cột session_id và attachments nếu chưa có
     try:
         with engine.connect() as conn:
             # Kiểm tra xem cột session_id đã tồn tại trong bảng chat_messages chưa
@@ -165,8 +183,49 @@ def init_db():
             if "session_id" not in columns:
                 conn.execute(text("ALTER TABLE chat_messages ADD COLUMN session_id VARCHAR(100) DEFAULT 'default'"))
                 conn.commit()
+            if "attachments" not in columns:
+                conn.execute(text("ALTER TABLE chat_messages ADD COLUMN attachments TEXT NULL"))
+                conn.commit()
+
+            # Di trú bảng agent_configs cho custom employees và teams
+            result_cfg = conn.execute(text("PRAGMA table_info(agent_configs)")).fetchall()
+            cols_cfg = [row[1] for row in result_cfg]
+            if "name" not in cols_cfg:
+                conn.execute(text("ALTER TABLE agent_configs ADD COLUMN name VARCHAR(100) NULL"))
+            if "parent_role" not in cols_cfg:
+                conn.execute(text("ALTER TABLE agent_configs ADD COLUMN parent_role VARCHAR(50) NULL"))
+            if "team_id" not in cols_cfg:
+                conn.execute(text("ALTER TABLE agent_configs ADD COLUMN team_id VARCHAR(100) NULL"))
+            if "is_leader" not in cols_cfg:
+                conn.execute(text("ALTER TABLE agent_configs ADD COLUMN is_leader BOOLEAN DEFAULT 0"))
+            if "role_type" not in cols_cfg:
+                conn.execute(text("ALTER TABLE agent_configs ADD COLUMN role_type VARCHAR(50) DEFAULT 'c_suite'"))
+            if "moral_path" not in cols_cfg:
+                conn.execute(text("ALTER TABLE agent_configs ADD COLUMN moral_path VARCHAR(255) NULL"))
+            
+            # Di trú thêm cột Heartbeat cho workflow_steps
+            result_ws = conn.execute(text("PRAGMA table_info(workflow_steps)")).fetchall()
+            cols_ws = [row[1] for row in result_ws]
+            if "last_heartbeat" not in cols_ws:
+                conn.execute(text("ALTER TABLE workflow_steps ADD COLUMN last_heartbeat DATETIME NULL"))
+            if "heartbeat_status" not in cols_ws:
+                conn.execute(text("ALTER TABLE workflow_steps ADD COLUMN heartbeat_status VARCHAR(50) NULL"))
+            if "nudge_count" not in cols_ws:
+                conn.execute(text("ALTER TABLE workflow_steps ADD COLUMN nudge_count INTEGER DEFAULT 0"))
+
+            # Di trú thêm cột Heartbeat cho swarm_members
+            result_sm = conn.execute(text("PRAGMA table_info(swarm_members)")).fetchall()
+            cols_sm = [row[1] for row in result_sm]
+            if "last_heartbeat" not in cols_sm:
+                conn.execute(text("ALTER TABLE swarm_members ADD COLUMN last_heartbeat DATETIME NULL"))
+            if "heartbeat_status" not in cols_sm:
+                conn.execute(text("ALTER TABLE swarm_members ADD COLUMN heartbeat_status VARCHAR(50) NULL"))
+            if "nudge_count" not in cols_sm:
+                conn.execute(text("ALTER TABLE swarm_members ADD COLUMN nudge_count INTEGER DEFAULT 0"))
+
+            conn.commit()
     except Exception as e:
-        print(f"Lỗi di trú cột session_id: {e}")
+        print(f"Lỗi di trú cơ sở dữ liệu: {e}")
 
 def get_db():
     """Dependency cung cấp session DB cho các API FastAPI"""

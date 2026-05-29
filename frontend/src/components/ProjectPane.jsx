@@ -23,7 +23,8 @@ export default function ProjectPane() {
     fetchProjectFiles, 
     loadProjectFileContent,
     runWorkflowStep,
-    retryWorkflowStep
+    retryWorkflowStep,
+    workspaceId
   } = useWorkspaceStore()
 
   const projectName = activeTab.replace('proj_', '')
@@ -32,7 +33,88 @@ export default function ProjectPane() {
   const [isSlideshowMode, setIsSlideshowMode] = useState(false)
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
   const [csvGrid, setCsvGrid] = useState(null)
-  const [islandOpen, setIsOpenIsland] = useState(false)
+  
+  const [exportingState, setExportingState] = useState(null)
+
+  const exportingMessages = {
+    analyzing: "Analyzing document outline & structure...",
+    generating: "Generating responsive Tailwind CSS grid layouts...",
+    rendering: "Launching Playwright to render slide vector frames...",
+    assembling: "Converting layers to native editable PowerPoint shapes...",
+    printing: "Printing high-fidelity document PDF with A4 grid pages...",
+  }
+
+  const handleExportPPTX = async () => {
+    if (!selectedProjectFilePath) return
+    try {
+      setExportingState('analyzing')
+      const t1 = setTimeout(() => setExportingState('generating'), 1500)
+      const t2 = setTimeout(() => setExportingState('rendering'), 3000)
+      const t3 = setTimeout(() => setExportingState('assembling'), 4500)
+      
+      const effectiveWorkspaceId = workspaceId || 'beo_corp'
+      const response = await fetch(`http://localhost:8000/api/workspaces/${effectiveWorkspaceId}/slides/export-pptx?file_path=${encodeURIComponent(selectedProjectFilePath)}&project_name=${encodeURIComponent(projectName)}`, {
+        method: 'POST'
+      })
+      
+      clearTimeout(t1)
+      clearTimeout(t2)
+      clearTimeout(t3)
+      
+      if (!response.ok) {
+        throw new Error('Export failed')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = selectedProjectFilePath.replace('.slide.md', '.pptx').split('/').pop()
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      alert('Error exporting PPTX: ' + error.message)
+    } finally {
+      setExportingState(null)
+    }
+  }
+
+  const handleExportPDF = async () => {
+    if (!selectedProjectFilePath) return
+    try {
+      setExportingState('analyzing')
+      const t1 = setTimeout(() => setExportingState('generating'), 1000)
+      const t2 = setTimeout(() => setExportingState('printing'), 2500)
+      
+      const effectiveWorkspaceId = workspaceId || 'beo_corp'
+      const response = await fetch(`http://localhost:8000/api/workspaces/${effectiveWorkspaceId}/docs/export-pdf?file_path=${encodeURIComponent(selectedProjectFilePath)}&project_name=${encodeURIComponent(projectName)}`, {
+        method: 'POST'
+      })
+      
+      clearTimeout(t1)
+      clearTimeout(t2)
+      
+      if (!response.ok) {
+        throw new Error('Export failed')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = selectedProjectFilePath.replace('.md', '.pdf').split('/').pop()
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      alert('Error exporting PDF: ' + error.message)
+    } finally {
+      setExportingState(null)
+    }
+  }
 
   useEffect(() => {
     fetchProjectFiles(projectName)
@@ -277,20 +359,38 @@ export default function ProjectPane() {
                     </div>
                     {/* Slides Toggle */}
                     {selectedProjectFilePath.endsWith('.slide.md') && (
-                      <div className="flex border border-white/[0.08] rounded-lg p-0.5 bg-black/30">
+                      <div className="flex items-center gap-2">
+                        <div className="flex border border-white/[0.08] rounded-lg p-0.5 bg-black/30">
+                          <button
+                            onClick={() => setIsSlideshowMode(true)}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-semibold transition-all ${isSlideshowMode ? 'bg-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                          >
+                            <PresentationIcon className="w-2.5 h-2.5" /> Slides
+                          </button>
+                          <button
+                            onClick={() => setIsSlideshowMode(false)}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-semibold transition-all ${!isSlideshowMode ? 'bg-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                          >
+                            <ListIcon className="w-2.5 h-2.5" /> Raw
+                          </button>
+                        </div>
                         <button
-                          onClick={() => setIsSlideshowMode(true)}
-                          className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-semibold transition-all ${isSlideshowMode ? 'bg-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                          onClick={handleExportPPTX}
+                          className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-400 rounded-lg text-[10px] font-bold transition-all shadow-sm"
                         >
-                          <PresentationIcon className="w-2.5 h-2.5" /> Slides
-                        </button>
-                        <button
-                          onClick={() => setIsSlideshowMode(false)}
-                          className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-semibold transition-all ${!isSlideshowMode ? 'bg-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-                        >
-                          <ListIcon className="w-2.5 h-2.5" /> Raw
+                          <PresentationIcon className="w-3 h-3 text-amber-400" /> Export PPTX
                         </button>
                       </div>
+                    )}
+                    {/* PDF Export for standard documents */}
+                    {!selectedProjectFilePath.endsWith('.slide.md') && selectedProjectFilePath.endsWith('.md') && (
+                      <button
+                        onClick={handleExportPDF}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold transition-colors"
+                      >
+                        <FileTextIcon className="w-3.5 h-3.5" />
+                        <span>Export PDF</span>
+                      </button>
                     )}
                   </div>
 
@@ -364,6 +464,24 @@ export default function ProjectPane() {
 
       </div>
 
+      {exportingState && (
+        <div className="absolute inset-0 z-50 bg-[#07080b]/90 backdrop-blur-md flex flex-col items-center justify-center select-none animate-fade-in text-left">
+          <div className="p-8 rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 backdrop-blur flex flex-col items-center justify-center max-w-sm text-center shadow-2xl relative overflow-hidden">
+            <div className="absolute -top-12 -left-12 w-24 h-24 rounded-full bg-blue-500/10 filter blur-xl animate-pulse" />
+            <div className="absolute -bottom-12 -right-12 w-24 h-24 rounded-full bg-purple-500/10 filter blur-xl animate-pulse" />
+            
+            <div className="relative w-16 h-16 mb-6">
+              <div className="absolute inset-0 rounded-full border-2 border-white/5" />
+              <div className="absolute inset-0 rounded-full border-2 border-t-blue-500 border-r-purple-500 animate-spin" />
+            </div>
+            
+            <h3 className="text-xs font-bold text-white uppercase tracking-widest font-mono mb-2">Beo Publisher</h3>
+            <p className="text-xs text-zinc-400 font-sans leading-relaxed animate-pulse">
+              {exportingMessages[exportingState]}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

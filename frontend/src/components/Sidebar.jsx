@@ -13,7 +13,9 @@ import {
   MessageSquareIcon,
   EyeIcon,
   FileTextIcon,
-  LayersIcon
+  LayersIcon,
+  Loader2,
+  TerminalIcon
 } from 'lucide-react'
 
 function Section({ title, children }) {
@@ -36,7 +38,7 @@ function Section({ title, children }) {
   )
 }
 
-function NavItem({ active, icon: Icon, label, count, children, onClick }) {
+function NavItem({ active, icon: Icon, label, count, children, onClick, isLoading }) {
   return (
     <button
       onClick={onClick}
@@ -51,9 +53,11 @@ function NavItem({ active, icon: Icon, label, count, children, onClick }) {
       ) : (
         children
       )}
-      <span className="truncate capitalize">{label}</span>
-      {count ? (
-        <span className="ml-auto min-w-5 h-5 px-1.5 rounded-md bg-white/[0.08] text-[11px] leading-5 text-content-normal text-center">
+      <span className="truncate capitalize flex-1">{label}</span>
+      {isLoading ? (
+        <Loader2 className={`w-3.5 h-3.5 animate-spin shrink-0 ml-auto ${active ? 'text-zinc-300' : 'text-zinc-500'}`} />
+      ) : count ? (
+        <span className="ml-auto min-w-5 h-5 px-1.5 rounded-md bg-white/[0.08] text-[11px] leading-5 text-content-normal text-center shrink-0">
           {count}
         </span>
       ) : null}
@@ -61,13 +65,13 @@ function NavItem({ active, icon: Icon, label, count, children, onClick }) {
   )
 }
 
-function HistoryItem({ active, icon: Icon, label, children, onClick, onHistory }) {
+function HistoryItem({ active, icon: Icon, label, children, onClick, onHistory, isLoading }) {
   return (
     <div className="relative group">
-      <NavItem active={active} icon={Icon} label={label} onClick={onClick}>
+      <NavItem active={active} icon={Icon} label={label} onClick={onClick} isLoading={isLoading}>
         {children}
       </NavItem>
-      {onHistory ? (
+      {onHistory && !isLoading ? (
         <button
           onClick={(event) => {
             event.stopPropagation()
@@ -84,7 +88,7 @@ function HistoryItem({ active, icon: Icon, label, children, onClick, onHistory }
   )
 }
 
-function SubNavItem({ active, icon: Icon, label, onClick, onHistory, indentLevel = 1 }) {
+function SubNavItem({ active, icon: Icon, label, onClick, onHistory, indentLevel = 1, isLoading }) {
   const indentClass = indentLevel === 2 ? 'pl-7' : 'pl-5'
   return (
     <div className="relative group">
@@ -97,9 +101,12 @@ function SubNavItem({ active, icon: Icon, label, onClick, onHistory, indentLevel
         }`}
       >
         {Icon && <Icon className={`w-3.5 h-3.5 shrink-0 ${active ? 'text-content-highlight' : 'text-content-muted'}`} />}
-        <span className="truncate capitalize">{label}</span>
+        <span className="truncate capitalize flex-1">{label}</span>
+        {isLoading && (
+          <Loader2 className={`w-3 h-3 animate-spin shrink-0 ml-auto mr-1 ${active ? 'text-zinc-300' : 'text-zinc-500'}`} />
+        )}
       </button>
-      {onHistory && (
+      {onHistory && !isLoading && (
         <button
           onClick={(event) => {
             event.stopPropagation()
@@ -128,7 +135,10 @@ export default function Sidebar({ onOpenHistory }) {
     projects,
     files,
     fetchFiles,
-    setSetupWizard
+    setSetupWizard,
+    teams,
+    isSending,
+    sendingTab
   } = useWorkspaceStore()
 
   const [expandedDepts, setExpandedDepts] = React.useState({})
@@ -276,14 +286,23 @@ export default function Sidebar({ onOpenHistory }) {
             label="Messages"
             onClick={() => selectTab('secretary_chat')}
             onHistory={() => onOpenHistory?.('secretary_chat')}
+            isLoading={sendingTab === 'secretary_chat'}
           />
           {onboardingCompleted && (
-            <NavItem
-              active={activeTab === 'swarms'}
-              icon={ActivityIcon}
-              label="Swarms"
-              onClick={() => selectTab('swarms')}
-            />
+            <>
+              <NavItem
+                active={activeTab === 'swarms'}
+                icon={ActivityIcon}
+                label="Swarms"
+                onClick={() => selectTab('swarms')}
+              />
+              <NavItem
+                active={activeTab === 'logs'}
+                icon={TerminalIcon}
+                label="Log"
+                onClick={() => selectTab('logs')}
+              />
+            </>
           )}
         </div>
 
@@ -304,6 +323,25 @@ export default function Sidebar({ onOpenHistory }) {
               const deptName = dep.replace('dep_', '').replace(/_/g, ' ')
               const isDeptExpanded = !!expandedDepts[dep]
               
+              const matchesDept = (depKey, teamDept) => {
+                if (!teamDept) return false
+                const depToRole = {
+                  'dep_planning': 'coo',
+                  'dep_engineering': 'cto',
+                  'dep_marketing': 'cmo',
+                  'dep_finance': 'cfo',
+                  'dep_product': 'cpo',
+                  'dep_executive': 'ceo',
+                  'dep_sales': 'cco',
+                  'dep_digital': 'cdo',
+                  'dep_hr': 'chro',
+                  'dep_strategy': 'cso'
+                }
+                const role = depToRole[depKey]
+                const normalizedTeamDept = teamDept.toLowerCase()
+                return normalizedTeamDept === role || normalizedTeamDept === depKey.replace('dep_', '')
+              }
+
               return (
                 <div key={dep} className="space-y-1">
                   {/* Department Header */}
@@ -329,7 +367,27 @@ export default function Sidebar({ onOpenHistory }) {
                         onClick={() => selectTab(`${dep}_chat_group`)}
                         onHistory={() => onOpenHistory?.(`${dep}_chat_group`)}
                         indentLevel={1}
+                        isLoading={sendingTab === `${dep}_chat_group`}
                       />
+
+                      {/* Sub-teams under this department */}
+                      {teams && teams
+                        .filter(team => matchesDept(dep, team.department))
+                        .map(team => {
+                          const teamTab = `dep_${team.department}_team_${team.team_id}`
+                          return (
+                            <SubNavItem
+                              key={team.team_id}
+                              active={activeTab === teamTab}
+                              icon={MessageSquareIcon}
+                              label={team.team_name}
+                              onClick={() => selectTab(teamTab)}
+                              onHistory={() => onOpenHistory?.(teamTab)}
+                              indentLevel={1}
+                              isLoading={sendingTab === teamTab}
+                            />
+                          )
+                        })}
 
                       <SubNavItem
                         active={activeTab === `${dep}_view`}
@@ -366,6 +424,7 @@ export default function Sidebar({ onOpenHistory }) {
                   label={project}
                   onClick={() => selectTab(tab)}
                   onHistory={() => onOpenHistory?.(tab)}
+                  isLoading={sendingTab === tab}
                 />
               )
             })}

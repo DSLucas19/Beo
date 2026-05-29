@@ -8,10 +8,16 @@ export const getTabRole = (tab) => {
   }
   if (!tab.startsWith('dep_')) return 'secretary'
   const dep = tab.replace('dep_', '')
-  if (dep.includes('planning') || dep.includes('planner')) return 'planner'
-  if (dep.includes('engineering') || dep.includes('developer')) return 'developer'
-  if (dep.includes('marketing') || dep.includes('marketer')) return 'marketer'
-  if (dep.includes('finance') || dep.includes('legal')) return 'finance'
+  if (dep.includes('planning') || dep.includes('coo')) return 'coo'
+  if (dep.includes('engineering') || dep.includes('cto')) return 'cto'
+  if (dep.includes('marketing') || dep.includes('cmo')) return 'cmo'
+  if (dep.includes('finance') || dep.includes('cfo')) return 'cfo'
+  if (dep.includes('product') || dep.includes('cpo')) return 'cpo'
+  if (dep.includes('executive') || dep.includes('ceo')) return 'ceo'
+  if (dep.includes('sales') || dep.includes('cco')) return 'cco'
+  if (dep.includes('digital') || dep.includes('cdo')) return 'cdo'
+  if (dep.includes('hr') || dep.includes('chro')) return 'chro'
+  if (dep.includes('strategy') || dep.includes('cso')) return 'cso'
   return dep
 }
 
@@ -20,9 +26,24 @@ export const getTabChannel = (tab) => {
     return useWorkspaceStore.getState()?.activePrivateAgent || 'secretary'
   }
   if (!tab.startsWith('dep_')) return 'secretary'
+  if (tab.includes('_team_')) {
+    return tab
+  }
   const role = getTabRole(tab)
   if (tab.includes('_chat_group')) {
-    return `${role === 'developer' ? 'engineering' : role === 'planner' ? 'planning' : role}_group`
+    const groupMapping = {
+      'coo': 'planning_group',
+      'cto': 'engineering_group',
+      'cmo': 'marketing_group',
+      'cfo': 'finance_group',
+      'cpo': 'product_group',
+      'ceo': 'executive_group',
+      'cco': 'sales_group',
+      'cdo': 'digital_group',
+      'chro': 'hr_group',
+      'cso': 'strategy_group'
+    }
+    return groupMapping[role] || `${role}_group`
   }
   return role
 }
@@ -36,11 +57,16 @@ export const useWorkspaceStore = create((set, get) => ({
   wizardMode: 'onboarding', // 'onboarding' | 'create_workspace'
 
   chatMessages: [],
+  logs: [],
+  loadingLogs: false,
+  agentHeartbeats: [],
   inboxItems: [],
+  selectedInboxItemId: null,
   files: [],
   selectedFileContent: null,
   selectedFilePath: null,
   isSending: false,
+  sendingTab: null,
   error: null,
   activePrivateAgent: 'secretary',
 
@@ -66,8 +92,10 @@ export const useWorkspaceStore = create((set, get) => ({
   presets: { skills: [], mcp_servers: [] },  // Skills và MCP Server mẫu cấu hình sẵn
   swarms: [],
   activeSwarmDetails: null,
+  teams: [],
 
   setSetupWizard: (show, mode = 'onboarding') => set({ showSetupWizard: show, wizardMode: mode }),
+  setSelectedInboxItemId: (id) => set({ selectedInboxItemId: id }),
 
   setActivePrivateAgent: (agent) => {
     set({ activePrivateAgent: agent, activeSessionId: 'default' })
@@ -84,6 +112,7 @@ export const useWorkspaceStore = create((set, get) => ({
     get().fetchFiles()
     get().fetchApiKeys()
     get().fetchDepartments()
+    get().fetchTeams()
     get().fetchProjects()
     get().fetchWorkflows()
     get().fetchMcpServers()
@@ -118,6 +147,8 @@ export const useWorkspaceStore = create((set, get) => ({
     } else if (tab.startsWith('dep_') || tab === 'secretary_chat') {
       get().fetchMessages()
       get().fetchSessions(tab)
+    } else if (tab === 'logs') {
+      get().fetchLogs()
     } else if (tab.startsWith('proj_')) {
       const projectName = tab.replace('proj_', '')
       get().fetchProjectFiles(projectName)
@@ -190,6 +221,7 @@ export const useWorkspaceStore = create((set, get) => ({
       // Nếu đã hoàn thành onboarding, tải luôn các phòng ban và dự án
       if (data.onboarding_completed) {
         get().fetchDepartments()
+        get().fetchTeams()
         get().fetchProjects()
       }
     } catch (err) {
@@ -219,14 +251,14 @@ export const useWorkspaceStore = create((set, get) => ({
     }
   },
 
-  sendMessage: async (messageText, channel = null) => {
+  sendMessage: async (messageText, channel = null, attachments = null) => {
     const { workspaceId, chatMessages, activeTab, activeSessionId } = get()
     if (!messageText.trim()) return
 
-    set({ isSending: true, error: null })
+    set({ isSending: true, sendingTab: activeTab, error: null })
     
     // 1. Optimistic update user message
-    const tempUserMsg = { sender: 'user', message: messageText, timestamp: new Date().toISOString() }
+    const tempUserMsg = { sender: 'user', message: messageText, attachments: attachments, timestamp: new Date().toISOString() }
     
     // 2. Prepare temporary streaming message from AI
     const role = getTabRole(activeTab)
@@ -251,7 +283,8 @@ export const useWorkspaceStore = create((set, get) => ({
       const payload = { 
         message: messageText,
         channel: targetChannel,
-        session_id: activeSessionId || 'default'
+        session_id: activeSessionId || 'default',
+        attachments: attachments
       }
 
       const res = await fetch(url, {
@@ -287,13 +320,28 @@ export const useWorkspaceStore = create((set, get) => ({
                 if (data.type === 'agent_start') {
                   // Switch to a new agent speaking bubble
                   set((state) => {
-                    const updated = state.chatMessages.map(m => m.isStreaming ? { ...m, isStreaming: false } : m)
-                    updated.push({
-                      sender: data.sender,
-                      message: '',
-                      timestamp: new Date().toISOString(),
-                      isStreaming: true
-                    })
+                    const updated = [...state.chatMessages]
+                    const lastMsg = updated.length > 0 ? updated[updated.length - 1] : null
+                    
+                    if (lastMsg && lastMsg.isStreaming && (!lastMsg.message || lastMsg.message.trim() === '')) {
+                      // Reuse the empty streaming bubble, just update its sender
+                      updated[updated.length - 1] = {
+                        ...lastMsg,
+                        sender: data.sender,
+                        timestamp: new Date().toISOString()
+                      }
+                    } else {
+                      // Finalize any existing streaming messages
+                      const mapped = updated.map(m => m.isStreaming ? { ...m, isStreaming: false } : m)
+                      mapped.push({
+                        sender: data.sender,
+                        message: '',
+                        timestamp: new Date().toISOString(),
+                        isStreaming: true
+                      })
+                      accumulatedMessage = '' // Reset for new agent
+                      return { chatMessages: mapped }
+                    }
                     accumulatedMessage = '' // Reset for new agent
                     return { chatMessages: updated }
                   })
@@ -359,7 +407,7 @@ export const useWorkspaceStore = create((set, get) => ({
     } finally {
       get().fetchMessages(targetChannel)
       get().fetchSessions()
-      set({ isSending: false })
+      set({ isSending: false, sendingTab: null })
     }
   },
 
@@ -388,6 +436,7 @@ export const useWorkspaceStore = create((set, get) => ({
         get().loadStatus() // Kiểm tra xem onboarding đã xong chưa
         get().fetchFiles()
         get().fetchDepartments() // Cập nhật phòng ban nếu duyệt Operations
+        get().fetchTeams()
         get().fetchWorkflows()   // Cập nhật lại workflow ngầm
         get().fetchSwarms()      // Tải lại swarm khi có thể deploy mới
         return true
@@ -476,6 +525,7 @@ export const useWorkspaceStore = create((set, get) => ({
         // Nếu thay đổi cấu hình phòng ban/tài chính, reload luôn
         if (filePath.endsWith('OPERATIONS.md') || filePath.endsWith('FINANCE.md')) {
           get().fetchDepartments()
+          get().fetchTeams()
         }
         return true
       }
@@ -560,6 +610,19 @@ export const useWorkspaceStore = create((set, get) => ({
       if (res.ok) {
         const data = await res.json()
         set({ departments: data.departments })
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  },
+
+  fetchTeams: async () => {
+    const { workspaceId } = get()
+    try {
+      const res = await fetch(`${API_BASE}/workspaces/${workspaceId}/teams`)
+      if (res.ok) {
+        const data = await res.json()
+        set({ teams: data })
       }
     } catch (err) {
       console.error(err)
@@ -925,6 +988,28 @@ export const useWorkspaceStore = create((set, get) => ({
     }
   },
 
+  fetchLogs: async () => {
+    const { workspaceId } = get()
+    set({ loadingLogs: true, error: null })
+    try {
+      const res = await fetch(`${API_BASE}/workspaces/${workspaceId}/logs`)
+      if (res.ok) {
+        const data = await res.json()
+        set({ 
+          logs: data.logs || [], 
+          agentHeartbeats: data.agent_heartbeats || [] 
+        })
+      } else {
+        set({ error: "Failed to fetch company logs" })
+      }
+    } catch (err) {
+      console.error(err)
+      set({ error: err.message || "Failed to fetch logs" })
+    } finally {
+      set({ loadingLogs: false })
+    }
+  },
+
   fetchSwarmDetails: async (swarmId) => {
     const { workspaceId } = get()
     try {
@@ -955,6 +1040,24 @@ export const useWorkspaceStore = create((set, get) => ({
     } catch (err) {
       console.error(err)
       return null
+    }
+  },
+
+  retrySwarmMember: async (swarmId, memberId) => {
+    const { workspaceId } = get()
+    try {
+      const res = await fetch(`${API_BASE}/workspaces/${workspaceId}/swarms/${swarmId}/members/${memberId}/retry`, {
+        method: 'POST'
+      })
+      if (res.ok) {
+        get().fetchSwarms()
+        get().fetchSwarmDetails(swarmId)
+        return true
+      }
+      return false
+    } catch (err) {
+      console.error(err)
+      return false
     }
   },
 
@@ -1027,6 +1130,37 @@ export const useWorkspaceStore = create((set, get) => ({
       return false
     } catch (err) {
       console.error('Failed to update system settings:', err)
+      return false
+    }
+  },
+
+  deleteWorkspace: async () => {
+    const { workspaceId } = get()
+    try {
+      const res = await fetch(`${API_BASE}/workspaces/${workspaceId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        set({
+          onboardingCompleted: false,
+          showSetupWizard: true,
+          wizardMode: 'onboarding',
+          workspaceId: 'beo_corp',
+          workspaceName: 'Beo Corporation',
+          chatMessages: [],
+          inboxItems: [],
+          files: [],
+          departments: [],
+          projects: [],
+          mcpServers: [],
+          agents: [],
+          activeTab: 'secretary_chat'
+        })
+        return true
+      }
+      return false
+    } catch (err) {
+      console.error('Failed to delete workspace:', err)
       return false
     }
   }

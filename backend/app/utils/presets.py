@@ -107,5 +107,91 @@ PRESET_MCP_SERVERS = [
             {"name": "create_pull_request", "description": "Tạo PR cho branch chứa code mới đề xuất merge"},
             {"name": "list_repositories", "description": "Xem danh sách các repositories của tài khoản hoặc tổ chức"}
         ]
+    },
+    {
+        "key": "firecrawl",
+        "name": "Firecrawl Scraper",
+        "description": "Cào và chuyển đổi toàn bộ website sang Markdown sạch tối ưu hóa cho AI, vượt tường lửa Cloudflare cực kỳ hiệu quả.",
+        "default_url": "http://localhost:5008",
+        "tools": [
+            {"name": "crawl_website", "description": "Cào tất cả các trang liên kết của một website thành file tài liệu Markdown"},
+            {"name": "scrape_page", "description": "Trích xuất văn bản sạch từ một URL trang đơn cụ thể"},
+            {"name": "search_and_extract", "description": "Tìm kiếm web và cào ngay văn bản từ các kết quả phù hợp nhất"}
+        ]
+    },
+    {
+        "key": "browserbase",
+        "name": "Browserbase Browser",
+        "description": "Nền tảng chạy trình duyệt Chrome headless bảo mật để tự động hóa giao diện, chụp ảnh màn hình và xử lý các ứng dụng web động.",
+        "default_url": "http://localhost:5009",
+        "tools": [
+            {"name": "create_browser_session", "description": "Khởi chạy một phiên duyệt web remote serverless mới"},
+            {"name": "click_and_fill", "description": "Nhấp chuột, nhập liệu hoặc tương tác trên trang web mục tiêu"},
+            {"name": "screenshot_page", "description": "Chụp lại ảnh màn hình dạng PNG của giao diện hiện tại"}
+        ]
+    },
+    {
+        "key": "notion",
+        "name": "Notion Workspace",
+        "description": "Đọc, tạo trang, cập nhật nội dung block và truy vấn databases thuộc cơ sở dữ liệu tri thức Notion của công ty.",
+        "default_url": "http://localhost:5010",
+        "tools": [
+            {"name": "query_database", "description": "Truy vấn, lọc và tìm kiếm bản ghi trong một Notion Database"},
+            {"name": "create_notion_page", "description": "Tạo mới một trang tài liệu hoặc một block ghi chú"},
+            {"name": "append_blocks", "description": "Thêm nội dung văn bản hoặc list checklist vào trang sẵn có"}
+        ]
+    },
+    {
+        "key": "apify",
+        "name": "Apify Automations",
+        "description": "Chạy các cloud scrapers & actors để trích xuất dữ liệu lớn từ Google Maps, Amazon, Instagram, và hơn 1000+ website khác.",
+        "default_url": "http://localhost:5011",
+        "tools": [
+            {"name": "run_apify_actor", "description": "Chạy một Actor được chọn trên Apify Cloud với đầu vào tùy biến"},
+            {"name": "get_dataset_results", "description": "Lấy toàn bộ kết quả dữ liệu đã cào được từ Actor run ID"}
+        ]
+    },
+    {
+        "key": "youtube",
+        "name": "YouTube Research",
+        "description": "Tự động trích xuất phụ đề (transcript), tìm kiếm video đối thủ và phân tích lượng xem phục vụ nghiên cứu thị trường.",
+        "default_url": "http://localhost:5012",
+        "tools": [
+            {"name": "get_video_transcript", "description": "Tải toàn bộ phụ đề thuyết minh tiếng Việt/Anh từ một YouTube Video ID"},
+            {"name": "search_youtube_videos", "description": "Tìm kiếm danh sách video theo từ khóa và tổng hợp thống kê"},
+            {"name": "get_video_stats", "description": "Lấy chi tiết lượt xem, lượt thích và ngày phát hành của video"}
+        ]
+    },
+    {
+        "key": "discord",
+        "name": "Discord Connect",
+        "description": "Gửi tin nhắn, thông báo tự động hoặc báo cáo lỗi trực tiếp vào Discord server nội bộ thông qua webhooks.",
+        "default_url": "http://localhost:5013",
+        "tools": [
+            {"name": "post_discord_hook", "description": "Gửi thông tin dạng embed hoặc văn bản tới Discord channel"},
+            {"name": "get_online_members", "description": "Đọc thông tin số lượng thành viên đang trực tuyến trong server"}
+        ]
+    },
+    {
+        "key": "stripe",
+        "name": "Stripe Operations",
+        "description": "Quản lý hóa đơn khách hàng, theo dõi giao dịch và trạng thái các gói đăng ký dịch vụ (subscriptions) của sản phẩm.",
+        "default_url": "http://localhost:5014",
+        "tools": [
+            {"name": "check_balance", "description": "Xem số dư khả dụng và lịch sử chi trả thanh toán gần nhất"},
+            {"name": "create_draft_invoice", "description": "Tạo hóa đơn nháp và liên kết thanh toán gửi tới khách hàng"},
+            {"name": "get_customer_subscriptions", "description": "Lọc trạng thái gói đăng ký của khách hàng bằng Email"}
+        ]
+    },
+    {
+        "key": "jira",
+        "name": "Jira Integration",
+        "description": "Quản lý tiến độ phát triển phần mềm, cập nhật trạng thái Task/Sprint, tạo Bug và phân công công việc cho các Agents.",
+        "default_url": "http://localhost:5015",
+        "tools": [
+            {"name": "create_jira_issue", "description": "Tạo Task hoặc Bug Ticket mới trên dự án Jira hiện tại"},
+            {"name": "update_jira_status", "description": "Chuyển đổi trạng thái vé (To Do -> In Progress -> Done)"},
+            {"name": "get_active_sprint", "description": "Đọc danh sách đầu việc đang chạy trong Sprint hoạt động"}
+        ]
     }
 ]

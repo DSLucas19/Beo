@@ -58,6 +58,9 @@ AI Agents collaborate dynamically through three modes of operation:
 2. **Parallel Mode**: Utilizes multi-threading to execute independent tasks concurrently, maximizing performance speed.
 3. **Collaborative/Consensus Mode**: Agents engage in multi-agent group discussions to self-reflect, peer-review, and optimize solutions before outputting the final result. All discussions are visualized in real-time as dynamic chat bubbles on the UI.
 
+### 6. Centralized Log Panel & Agent Heartbeat Watchdog
+A unified development console aggregates all backend activities (terminal executions, workflow step executions, swarm member logs) in real-time. It features an automated agent watchdog tracking online AI health (Healthy, Nudged, Escalated, Failed) with instant recovery reruns and manual retry controls for failed steps.
+
 ---
 
 ## 📐 System Architecture

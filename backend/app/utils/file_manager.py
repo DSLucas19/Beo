@@ -32,8 +32,39 @@ def is_safe_path(base_dir: Path, target_path: Path) -> bool:
     except Exception:
         return False
 
+def git_init_workspace(workspace_id: str):
+    """Khởi tạo kho lưu trữ Git cục bộ trong thư mục Workspace nếu chưa có"""
+    import subprocess
+    try:
+        ws_root = get_workspace_root(workspace_id)
+        git_dir = ws_root / ".git"
+        if not git_dir.exists():
+            subprocess.run(["git", "init"], cwd=str(ws_root), capture_output=True, text=True, timeout=5)
+            
+            # Tạo file .gitignore mặc định để tránh track file cache và database cục bộ
+            gitignore_path = ws_root / ".gitignore"
+            if not gitignore_path.exists():
+                with open(gitignore_path, "w", encoding="utf-8") as f:
+                    f.write(".memory_db/\nsettings.json\nlogs/\n*.db-journal\n*.db-shm\n*.db-wal\n")
+    except Exception as e:
+        print(f"Warning: Failed to initialize Git in workspace: {e}")
+
+def commit_git_change(workspace_id: str, relative_file_path: str, message: str):
+    """Thêm tệp tin và tạo Git commit cục bộ để quản lý phiên bản an toàn"""
+    import subprocess
+    try:
+        ws_root = get_workspace_root(workspace_id)
+        # Check if git is initialized
+        if (ws_root / ".git").exists():
+            # git add
+            subprocess.run(["git", "add", "."], cwd=str(ws_root), capture_output=True, text=True, timeout=5)
+            # git commit
+            subprocess.run(["git", "commit", "-m", message], cwd=str(ws_root), capture_output=True, text=True, timeout=5)
+    except Exception as e:
+        print(f"Warning: Failed to commit change in Git: {e}")
+
 def write_workspace_file(workspace_id: str, relative_file_path: str, content: str) -> Path:
-    """Ghi dữ liệu vào file phẳng trong thư mục Workspace dùng chung"""
+    """Ghi dữ liệu vào file phẳng trong thư mục Workspace dùng chung và commit git"""
     base_dir = get_workspace_files_path(workspace_id)
     target_file = (base_dir / relative_file_path).resolve()
     
@@ -43,6 +74,11 @@ def write_workspace_file(workspace_id: str, relative_file_path: str, content: st
     target_file.parent.mkdir(parents=True, exist_ok=True)
     with open(target_file, "w", encoding="utf-8") as f:
         f.write(content)
+        
+    # Auto-Git commit
+    git_init_workspace(workspace_id)
+    commit_git_change(workspace_id, f"workspace/{relative_file_path}", f"AI update file: workspace/{relative_file_path}")
+    
     return target_file
 
 def read_workspace_file(workspace_id: str, relative_file_path: str) -> str:
@@ -90,7 +126,7 @@ def get_project_root(workspace_id: str, project_name: str) -> Path:
     return project_path
 
 def write_project_file(workspace_id: str, project_name: str, relative_file_path: str, content: str) -> Path:
-    """Ghi dữ liệu vào file phẳng trong thư mục riêng của Dự án"""
+    """Ghi dữ liệu vào file phẳng trong thư mục riêng của Dự án và commit git"""
     base_dir = get_project_root(workspace_id, project_name)
     target_file = (base_dir / relative_file_path).resolve()
     
@@ -100,6 +136,11 @@ def write_project_file(workspace_id: str, project_name: str, relative_file_path:
     target_file.parent.mkdir(parents=True, exist_ok=True)
     with open(target_file, "w", encoding="utf-8") as f:
         f.write(content)
+        
+    # Auto-Git commit
+    git_init_workspace(workspace_id)
+    commit_git_change(workspace_id, f"projects/{project_name}/{relative_file_path}", f"AI update project file: projects/{project_name}/{relative_file_path}")
+    
     return target_file
 
 def read_project_file(workspace_id: str, project_name: str, relative_file_path: str) -> str:
@@ -149,26 +190,60 @@ def parse_active_departments(workspace_id: str) -> List[str]:
     mapping = {
         "planning": "dep_planning",
         "planner": "dep_planning",
+        "coo": "dep_planning",
         "lập kế hoạch": "dep_planning",
         
         "engineering": "dep_engineering",
         "developer": "dep_engineering",
+        "cto": "dep_engineering",
         "kỹ thuật": "dep_engineering",
         "phát triển": "dep_engineering",
         
         "marketing": "dep_marketing",
         "truyền thông": "dep_marketing",
         "quảng cáo": "dep_marketing",
+        "cmo": "dep_marketing",
         
         "finance": "dep_finance",
         "tài chính": "dep_finance",
-        "pháp lý": "dep_finance"
+        "pháp lý": "dep_finance",
+        "cfo": "dep_finance",
+        
+        "product": "dep_product",
+        "sản phẩm": "dep_product",
+        "cpo": "dep_product"
     }
     
+    # Chỉ trích xuất phần nội dung nằm trong mục "Sơ đồ cơ cấu tổ chức" hoặc "Active Departments"
+    # để tránh parse nhầm các phần Roadmap, tài liệu tham khảo khác ở dưới.
+    target_section = ""
     lines = content.split("\n")
+    in_section = False
+    
+    for line in lines:
+        if "## 1." in line or "sơ đồ cơ cấu" in line.lower() or "active departments" in line.lower():
+            in_section = True
+            continue
+        if in_section and line.strip().startswith("##"):
+            # Gặp header tiếp theo thì dừng lại
+            break
+        if in_section:
+            target_section += line + "\n"
+            
+    # Nếu không tìm thấy section cụ thể nào, fallback lại đọc toàn bộ file
+    parse_content = target_section if target_section.strip() else content
+    
+    lines = parse_content.split("\n")
     for line in lines:
         line_clean = line.strip().lower()
         if line_clean.startswith("-") or line_clean.startswith("*") or re.match(r"^\d+\.", line_clean):
+            # Không parse dòng tiêu đề mô tả hoặc dòng trống thông báo "(Hiện tại chưa có...)"
+            if "các nhân sự ai chuyên trách" in line_clean or "active departments" in line_clean:
+                if "chưa có" in line_clean or "none" in line_clean or "chưa hoạt động" in line_clean:
+                    continue
+            if "hiện tại chưa có" in line_clean or "chưa được tuyển dụng" in line_clean:
+                continue
+                
             clean_name = re.sub(r"^[-*\d.\s]+", "", line_clean).strip()
             for key, val in mapping.items():
                 if key in clean_name and val not in departments:
@@ -211,7 +286,8 @@ def get_system_settings(workspace_id: str) -> dict:
     defaults = {
         "daily_cost_cap": 5.00,
         "loop_guard_limit": 5,
-        "shell_security_sandbox": True
+        "shell_security_sandbox": True,
+        "approval_policy": "user"  # Tùy chọn: 'user', 'auto', 'secretary'
     }
     
     if settings_file.exists():

@@ -70,3 +70,8 @@ build/
 # Large Executables & Binary Files
 *.exe
 cli-proxy-api.exe
+
+# Playwright & Local Cache Directories
+.playwright-browsers/
+.tmp/
+downloads/

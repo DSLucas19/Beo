@@ -17,6 +17,8 @@ test('normalizeDocumentName adds markdown extension when missing', () => {
 test('normalizeDocumentName keeps common text document extensions', () => {
   assert.equal(normalizeDocumentName('notes.txt'), 'notes.txt')
   assert.equal(normalizeDocumentName('table.csv'), 'table.csv')
+  assert.equal(normalizeDocumentName('index.html'), 'index.html')
+  assert.equal(normalizeDocumentName('index.htm'), 'index.htm')
 })
 
 test('formatBytes returns readable file sizes', () => {

@@ -86,11 +86,13 @@ def test_swarm_runner_execution(monkeypatch, tmp_path):
             else:
                 return mock_response_2
         
-        # Patch AgentWrapper.call and AgentWrapper._load_api_keys to avoid DB lookup/litellm calls
-        with patch("app.agents.swarm_runner.AgentWrapper") as MockAgentWrapper:
+        # Patch AgentWrapper.call and AgentWrapper._load_api_keys and get_system_settings to avoid DB lookup and manual approval hangs
+        with patch("app.agents.swarm_runner.AgentWrapper") as MockAgentWrapper, \
+             patch("app.main.get_system_settings") as mock_settings:
             mock_instance = MagicMock()
             mock_instance.call.side_effect = mock_call
             MockAgentWrapper.return_value = mock_instance
+            mock_settings.return_value = {"approval_policy": "auto"}
             
             # Execute run_swarm
             # We pass a lambda that returns the session to simulate db_factory
@@ -126,9 +128,14 @@ def test_swarm_runner_execution(monkeypatch, tmp_path):
         
         # Verify ChatMessages logs
         messages = db.query(ChatMessage).filter(ChatMessage.workspace_id == workspace_id).all()
-        assert len(messages) == 2
+        assert len(messages) == 3
         assert messages[0].sender == "Market Researcher"
         assert messages[1].sender == "Slide Writer"
+        assert messages[2].sender == "secretary"
+        
+        # Verify that Swarm Retrospective report was written (populated with the 3rd mock call result)
+        report_content = read_workspace_file(workspace_id, f"reports/meeting_{job_id}.md")
+        assert report_content == mock_response_2
         
     finally:
         db.close()
@@ -281,10 +288,16 @@ def test_swarm_collaborative_execution(monkeypatch, tmp_path):
         
         # Verify ChatMessages were created for the group channel
         # Planner and Marketer contain "planner" and "marketer", so they map to "planning_group" and "marketing_group" respectively
+        # The 5th message is the automatic meeting retrospective report.
         msgs = db.query(ChatMessage).filter(ChatMessage.workspace_id == workspace_id).order_by(ChatMessage.id.asc()).all()
-        assert len(msgs) == 4
+        assert len(msgs) == 5
         assert msgs[0].channel == "planning_group"
         assert msgs[1].channel == "marketing_group"
+        assert msgs[4].channel == "planning_group"
+        
+        # Verify that Swarm Retrospective report was written (populated with the 5th mock call result)
+        report_content = read_workspace_file(workspace_id, f"reports/meeting_{job_id}.md")
+        assert report_content == "Discussion comment 5."
         
     finally:
         db.close()

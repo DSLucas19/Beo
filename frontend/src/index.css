@@ -284,20 +284,7 @@ button, a, input, textarea, select, .transition-all {
   animation: simple-fade-in 0.4s ease-out forwards;
 }
 
-/* 6. FLOATING DYNAMIC ISLAND & PREMIUM INBOX GALLERY UTILITIES */
-.dynamic-island-glass {
-  background: rgba(15, 15, 18, 0.75);
-  backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.dynamic-island-dropdown-glass {
-  background: rgba(12, 12, 15, 0.95);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.9);
-}
+/* 6. PREMIUM INBOX GALLERY UTILITIES */
 
 /* Premium Card Styles */
 .premium-card {
@@ -526,8 +513,414 @@ div.font-mono {
   box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.8) !important;
 }
 
+/* Messy stacked deck of dialog windows */
+.wizard-card-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  width: 100%;
+  position: relative;
+  align-items: center; /* Prevents children from stretching and centers them vertically */
+  justify-items: center; /* Centers items horizontally */
+}
 
 
+.wizard-card {
+  grid-area: 1 / 1 / 2 / 2;
+  width: 100%;
+  max-width: 460px;
+  max-height: 90vh;
+  background: rgba(9, 9, 11, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(40px, 80px, 0) rotate(5deg);
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), 
+              opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.5s ease;
+  filter: blur(0px);
+}
 
+
+/* Active card - centered dialog window with deep luxury shadow */
+.wizard-card-active {
+  transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  opacity: 1;
+  z-index: 20;
+  pointer-events: auto;
+  filter: blur(0px);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Future card - waiting below with custom rotation */
+.wizard-card-future {
+  transform: translate3d(40px, 80px, 0) rotate(5deg);
+  opacity: 0;
+  z-index: 30;
+  pointer-events: none;
+  filter: blur(0px);
+}
+
+/* Step 1 when 1 step behind (wizardStep = 2) - entire dialog peeks left */
+.wizard-card-past-1-near {
+  transform: translate3d(-20px, -12px, 0) rotate(-4deg);
+  opacity: 0.5;
+  z-index: 15;
+  pointer-events: none;
+  filter: blur(0.5px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* Step 2 when 1 step behind (wizardStep = 3) - entire dialog peeks right */
+.wizard-card-past-2-near {
+  transform: translate3d(20px, -10px, 0) rotate(3deg);
+  opacity: 0.55;
+  z-index: 15;
+  pointer-events: none;
+  filter: blur(0.5px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* Step 1 when 2 steps behind (wizardStep = 3) - entire dialog peeks deeper left */
+.wizard-card-past-1-far {
+  transform: translate3d(-32px, -20px, 0) rotate(-7deg);
+  opacity: 0.25;
+  z-index: 10;
+  pointer-events: none;
+  filter: blur(1px);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* Deep past cards */
+.wizard-card-past-deep {
+  transform: translate3d(-38px, -28px, 0) rotate(-9deg);
+  opacity: 0.1;
+  z-index: 5;
+  pointer-events: none;
+  filter: blur(1.5px);
+}
+
+
+/* AI Messaging Enhancement Animations */
+@keyframes actionSlideUpOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+}
+
+@keyframes actionSlideUpIn {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.action-fade-out {
+  animation: actionSlideUpOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.action-fade-in {
+  animation: actionSlideUpIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes dot-bounce {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+.dot-bounce-1 {
+  animation: dot-bounce 1.2s infinite ease-in-out;
+}
+
+.dot-bounce-2 {
+  animation: dot-bounce 1.2s infinite ease-in-out;
+  animation-delay: 0.2s;
+}
+
+.dot-bounce-3 {
+  animation: dot-bounce 1.2s infinite ease-in-out;
+  animation-delay: 0.4s;
+}
+
+/* Premium split pane document viewer slide-in and search highlight transitions */
+@keyframes slide-in-split {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.split-pane-appear {
+  animation: slide-in-split 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Text Search Highlight in Doc Viewer */
+.text-search-highlight {
+  background-color: rgba(245, 158, 11, 0.3);
+  border-bottom: 2px solid rgb(245, 158, 11);
+  color: #ffffff;
+  padding: 0px 2px;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+/* Members and Docs Popup - Solid & Opaque */
+.members-popup-glass {
+  background: #0f1015 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  border-radius: 16px;
+}
+
+/* Opaque Closed Widget Button */
+.opaque-widget-btn {
+  background-color: #121318 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
+  color: #e4e4e7 !important;
+}
+.opaque-widget-btn:hover {
+  background-color: #1a1b22 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+/* PREMIUM ILLUSTRATION ANIMATIONS FOR VIEW CREATION POPUP */
+
+/* 1. Kanban Drag and Drop Animations */
+@keyframes illust-kanban-fade-in-1 {
+  0% { opacity: 0; transform: translateY(6px); }
+  8% { opacity: 1; transform: translateY(0); }
+  92% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; }
+}
+
+@keyframes illust-kanban-fade-in-2 {
+  0%, 10% { opacity: 0; transform: translateY(6px); }
+  18% { opacity: 1; transform: translateY(0); }
+  92% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; }
+}
+
+@keyframes illust-kanban-fade-in-3 {
+  0%, 20% { opacity: 0; transform: translateY(6px); }
+  28% { opacity: 1; transform: translateY(0); }
+  92% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; }
+}
+
+@keyframes illust-kanban-drag-card {
+  0%, 30% {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  38% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.04);
+  }
+  48% {
+    transform: translate3d(0, -4px, 0) scale(1.05) rotate(1.5deg);
+    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.6);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  68% {
+    transform: translate3d(124px, -4px, 0) scale(1.05) rotate(1.5deg);
+    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.6);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  76% {
+    transform: translate3d(124px, 0, 0) scale(1) rotate(0deg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.04);
+  }
+  78%, 86% {
+    transform: translate3d(124px, 0, 0);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+    border-color: rgba(16, 185, 129, 0.5);
+  }
+  92% {
+    opacity: 1;
+    transform: translate3d(124px, 0, 0);
+    border-color: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(124px, 0, 0);
+  }
+}
+
+.illust-k-card-1 {
+  animation: illust-kanban-fade-in-1 8s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+.illust-k-card-2 {
+  animation: illust-kanban-fade-in-2 8s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+.illust-k-card-3 {
+  animation: illust-kanban-fade-in-3 8s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+.illust-k-card-drag {
+  animation: illust-kanban-drag-card 8s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+/* 2. Table Sorting & Shimmer Animations */
+@keyframes illust-table-fade-in {
+  0% { opacity: 0; transform: translateY(4px); }
+  10% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; }
+}
+
+@keyframes illust-table-row-swap-1 {
+  0%, 35% { transform: translateY(0); }
+  50%, 85% { transform: translateY(32px); }
+  95%, 100% { transform: translateY(0); }
+}
+
+@keyframes illust-table-row-swap-2 {
+  0%, 35% { transform: translateY(0); }
+  50%, 85% { transform: translateY(-32px); }
+  95%, 100% { transform: translateY(0); }
+}
+
+@keyframes illust-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.illust-t-container {
+  animation: illust-table-fade-in 7s ease-in-out infinite;
+}
+.illust-t-row-swap-1 {
+  animation: illust-table-row-swap-1 7s cubic-bezier(0.76, 0, 0.24, 1) infinite;
+}
+.illust-t-row-swap-2 {
+  animation: illust-table-row-swap-2 7s cubic-bezier(0.76, 0, 0.24, 1) infinite;
+}
+.illust-shimmer-bg {
+  background: linear-gradient(90deg, rgba(255,255,255,0.01) 25%, rgba(255,255,255,0.05) 37%, rgba(255,255,255,0.01) 63%);
+  background-size: 200% 100%;
+  animation: illust-shimmer 2.5s infinite linear;
+}
+
+/* 3. Cards Grid Hover Animations */
+@keyframes illust-cards-fade-in {
+  0% { opacity: 0; transform: scale(0.97); }
+  10% { opacity: 1; transform: scale(1); }
+  90% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; }
+}
+
+@keyframes illust-card-hover-simulate {
+  0%, 25% {
+    transform: scale(1);
+    border-color: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    background: rgba(255, 255, 255, 0.01);
+  }
+  42%, 75% {
+    transform: scale(1.05) translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.5), 0 0 15px rgba(255,255,255,0.03);
+    background: rgba(255, 255, 255, 0.03);
+  }
+  92%, 100% {
+    transform: scale(1);
+    border-color: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    background: rgba(255, 255, 255, 0.01);
+  }
+}
+
+.illust-c-grid {
+  animation: illust-cards-fade-in 6s ease-in-out infinite;
+}
+.illust-c-hover-card {
+  animation: illust-card-hover-simulate 6s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+/* 4. List Sweep and Check Animations */
+@keyframes illust-list-fade-in {
+  0% { opacity: 0; transform: translateY(4px); }
+  10% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; }
+}
+
+@keyframes illust-list-sweep-line {
+  0%, 15% { top: 0%; opacity: 0; }
+  25% { opacity: 0.6; }
+  55% { top: 75%; opacity: 0.6; }
+  65%, 100% { top: 90%; opacity: 0; }
+}
+
+@keyframes illust-list-check-dot {
+  0%, 40% {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  50%, 85% {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgb(16, 185, 129);
+  }
+  92%, 100% {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+@keyframes illust-list-check-strike {
+  0%, 40% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  50%, 85% {
+    opacity: 0.4;
+  }
+  92%, 100% {
+    opacity: 1;
+  }
+}
+
+.illust-l-container {
+  animation: illust-list-fade-in 7s ease-in-out infinite;
+}
+.illust-l-sweep {
+  animation: illust-list-sweep-line 7s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+.illust-l-dot {
+  animation: illust-list-check-dot 7s ease-in-out infinite;
+}
+.illust-l-strike {
+  animation: illust-list-check-strike 7s ease-in-out infinite;
+}
 
 

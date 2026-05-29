@@ -8,6 +8,248 @@ from app.config import DEFAULT_MODEL, DEFAULT_TEMPERATURE
 
 # Tắt hiển thị prompt và log chi tiết không cần thiết của litellm
 litellm.telemetry = False
+litellm.drop_params = True
+
+
+def parse_attachments_to_multimodal_content(workspace_id: str, content_text: str, attachments_json: str) -> Any:
+    import json
+    import base64
+    from pathlib import Path
+    from app.config import WORKSPACES_DIR
+    
+    content = [{"type": "text", "text": content_text}]
+    try:
+        if not attachments_json:
+            return content_text
+            
+        file_paths = json.loads(attachments_json)
+        if not file_paths or not isinstance(file_paths, list):
+            return content_text
+            
+        for path_str in file_paths:
+            if path_str.startswith("/attachments/"):
+                rel_parts = path_str.replace("/attachments/", "", 1)
+                disk_path = WORKSPACES_DIR / rel_parts
+                if disk_path.exists() and disk_path.is_file():
+                    mime_type = "image/jpeg"
+                    if disk_path.suffix.lower() == ".png":
+                        mime_type = "image/png"
+                    elif disk_path.suffix.lower() == ".gif":
+                        mime_type = "image/gif"
+                    elif disk_path.suffix.lower() in [".webp"]:
+                        mime_type = "image/webp"
+                        
+                    with open(disk_path, "rb") as image_file:
+                        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+                        
+                    content.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime_type};base64,{encoded_string}"
+                        }
+                    })
+        if len(content) > 1:
+            return content
+    except Exception as e:
+        print("Error parsing attachments for vision prompt:", e)
+        
+    return content_text
+
+
+AGENT_NATIVE_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "write_file",
+            "description": "Đề xuất tạo hoặc ghi file phẳng trong thư mục Workspace. Gửi vào Approval Queue của User.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Đường dẫn file (ví dụ: AIM.md, src/main.py, etc.)"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Nội dung đầy đủ để ghi vào file."
+                    },
+                    "rationale": {
+                        "type": "string",
+                        "description": "Giải thích lý do ghi file này."
+                    }
+                },
+                "required": ["file_path", "content", "rationale"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_command",
+            "description": "Đề xuất thực thi lệnh shell trên máy local của người dùng. Luôn gửi vào Approval Queue.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "Lệnh shell cần chạy (ví dụ: pytest, npm run build, etc.)"
+                    },
+                    "explanation": {
+                        "type": "string",
+                        "description": "Giải thích lý do cần chạy lệnh này."
+                    },
+                    "risk_level": {
+                        "type": "string",
+                        "enum": ["LOW", "MEDIUM", "HIGH"],
+                        "description": "Đánh giá mức độ rủi ro của lệnh."
+                    }
+                },
+                "required": ["command", "explanation", "risk_level"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "send_email",
+            "description": "Đề xuất gửi email báo cáo hoặc email quảng bá. Luôn gửi vào Approval Queue.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "recipient": {
+                        "type": "string",
+                        "description": "Địa chỉ email người nhận."
+                    },
+                    "subject": {
+                        "type": "string",
+                        "description": "Tiêu đề email."
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "Nội dung email."
+                    }
+                },
+                "required": ["recipient", "subject", "body"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "deploy_swarm",
+            "description": "Đề xuất kích hoạt một nhóm Swarm Agents để giải quyết tác vụ phức tạp.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "swarm_name": {
+                        "type": "string",
+                        "description": "Tên mô tả ngắn của Swarm."
+                    },
+                    "execution_mode": {
+                        "type": "string",
+                        "enum": ["sequential", "parallel", "collaborative"],
+                        "description": "Chế độ chạy: sequential (tuần tự), parallel (song song), collaborative (thảo luận)."
+                    },
+                    "members": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "role": {
+                                    "type": "string",
+                                    "description": "Vai trò của agent con (ví dụ: coder, tester, copywriter, bookkeeper, pm_coordinator...)"
+                                },
+                                "task": {
+                                    "type": "string",
+                                    "description": "Nhiệm vụ cụ thể giao cho agent này."
+                                }
+                            },
+                            "required": ["role", "task"]
+                        },
+                        "description": "Danh sách các agent thành viên tham gia Swarm."
+                    },
+                    "explanation": {
+                        "type": "string",
+                        "description": "Giải thích lý do deploy Swarm và chọn execution_mode."
+                    }
+                },
+                "required": ["swarm_name", "execution_mode", "members", "explanation"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_meeting",
+            "description": "Đề xuất mở một cuộc họp khẩn cấp hoặc cuộc họp thảo luận giữa các ban ngành khi gặp bế tắc.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "meeting_name": {
+                        "type": "string",
+                        "description": "Tên chủ đề cuộc họp."
+                    },
+                    "meeting_type": {
+                        "type": "string",
+                        "enum": ["emergency", "regular"],
+                        "description": "Mức độ khẩn cấp."
+                    },
+                    "agenda": {
+                        "type": "string",
+                        "description": "Chương trình/Nội dung bế tắc cần tháo gỡ."
+                    },
+                    "members": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "BẮT BUỘC: Danh sách chi tiết các vai trò (role) được triệu tập họp (ví dụ: cto, cmo, cfo...). Không được để trống. Chỉ được mời các Agent đang hoạt động."
+                    },
+                    "explanation": {
+                        "type": "string",
+                        "description": "Lý do triệu tập cuộc họp."
+                    }
+                },
+                "required": ["meeting_name", "meeting_type", "agenda", "members", "explanation"]
+            }
+        }
+    }
+]
+
+
+def update_agent_heartbeat(workspace_id: str, role: str, db: Session):
+    try:
+        from app.database import WorkflowStep, SwarmMember, SwarmJob
+        from datetime import datetime
+        from sqlalchemy import func
+        if not role:
+            return
+            
+        # 1. Cập nhật WorkflowStep đang chạy của role này
+        step = db.query(WorkflowStep).filter(
+            WorkflowStep.workspace_id == workspace_id,
+            func.lower(WorkflowStep.role) == role.lower(),
+            WorkflowStep.status == "running"
+        ).first()
+        if step:
+            step.last_heartbeat = datetime.utcnow()
+            step.heartbeat_status = "healthy"
+            step.nudge_count = 0
+            db.commit()
+            
+        # 2. Cập nhật SwarmMember đang chạy
+        members = db.query(SwarmMember).join(SwarmJob).filter(
+            SwarmJob.workspace_id == workspace_id,
+            func.lower(SwarmMember.role).contains(role.lower()),
+            SwarmMember.status == "running"
+        ).all()
+        for m in members:
+            m.last_heartbeat = datetime.utcnow()
+            m.heartbeat_status = "healthy"
+            m.nudge_count = 0
+            db.commit()
+    except Exception as e:
+        print("Lỗi update heartbeat:", e)
 
 class AgentWrapper:
     def __init__(self, workspace_id: str, db: Session):
@@ -54,6 +296,8 @@ class AgentWrapper:
             elif provider == "openrouter":
                 os.environ["OPENROUTER_API_KEY"] = api_key
                 os.environ["OR_API_KEY"] = api_key
+            elif provider == "mimo":
+                os.environ["MIMO_API_KEY"] = api_key
             elif provider in ["cliproxyapi", "cliproxy"]:
                 os.environ["CLIPROXY_API_KEY"] = api_key
             elif provider == "custom":
@@ -79,6 +323,7 @@ class AgentWrapper:
         agent_model = model
         soul_content = ""
         personality_content = ""
+        moral_content = ""
         skills_str = ""
         mcp_servers_str = ""
 
@@ -106,6 +351,10 @@ class AgentWrapper:
                     personality_content = read_workspace_file(self.workspace_id, cfg.personality_path)
                 except Exception:
                     pass
+                try:
+                    moral_content = read_workspace_file(self.workspace_id, cfg.moral_path or f"agents/{role.lower()}/MORAL.md")
+                except Exception:
+                    pass
 
                 # Kỹ năng hoạt động
                 enabled_skills = json.loads(cfg.enabled_skills or "[]")
@@ -128,6 +377,16 @@ class AgentWrapper:
 
         target_temp = temperature if temperature is not None else DEFAULT_TEMPERATURE
 
+        # Trigger simulation for testing heartbeat timeouts
+        if role and any(keyword in (messages[-1]["content"] if messages else "").lower() 
+                        for keyword in ["test_freeze", "test_hang", "giả lập treo"]):
+            import time
+            time.sleep(60) # Block the thread to trigger heartbeat checker watchdog
+            
+        # Update agent heartbeat at the start of call
+        if role:
+            update_agent_heartbeat(self.workspace_id, role, self.db)
+
         # --- BUDGET CHECK (Gap 1) ---
         try:
             today_start = datetime.combine(date.today(), datetime.min.time())
@@ -149,14 +408,44 @@ class AgentWrapper:
         self._inject_env_keys()
         
         # Tạo bản sao tin nhắn để inject ngữ cảnh cấu hình động
-        injected_messages = [dict(m) for m in messages]
+        injected_messages = []
+        for m in messages:
+            m_copy = dict(m)
+            if "attachments" in m_copy and m_copy["attachments"]:
+                m_copy["content"] = parse_attachments_to_multimodal_content(self.workspace_id, m_copy.get("content", ""), m_copy.pop("attachments"))
+            injected_messages.append(m_copy)
         if injected_messages and injected_messages[0]["role"] == "system":
             sys_msg = injected_messages[0]["content"]
             extra = []
+            
+            # Query active/disabled agents
+            active_agents = []
+            disabled_agents = []
+            try:
+                from app.database import AgentConfig
+                all_agents = self.db.query(AgentConfig).filter(AgentConfig.workspace_id == self.workspace_id).all()
+                for a in all_agents:
+                    if a.is_active:
+                        active_agents.append(a.role)
+                    else:
+                        disabled_agents.append(a.role)
+            except Exception:
+                pass
+
+            if active_agents or disabled_agents:
+                status_info = "### [TÌNH TRẠNG HOẠT ĐỘNG CỦA CÁC AGENT TRONG DOANH NGHIỆP]\n"
+                status_info += f"- ĐANG HOẠT ĐỘNG (ACTIVE): {', '.join(active_agents)}\n"
+                if disabled_agents:
+                    status_info += f"- ĐÃ BỊ VÔ HIỆU HÓA (DISABLED): {', '.join(disabled_agents)}\n"
+                    status_info += "LƯU Ý QUAN TRỌNG: Bạn chỉ được mời hoặc triệu tập (create_meeting, deploy_swarm) các Agent ĐANG HOẠT ĐỘNG. Không mời hoặc giao nhiệm vụ cho các Agent đã bị vô hiệu hóa. Nếu cần thiết, hãy yêu cầu người dùng kích hoạt họ trong Settings trước."
+                extra.append(status_info)
+
             if soul_content:
                 extra.append(f"### [SOUL & CORE VALUES]\n{soul_content}")
             if personality_content:
                 extra.append(f"### [PERSONALITY & STYLE]\n{personality_content}")
+            if moral_content:
+                extra.append(f"### [MORAL & ETHICAL RESPONSIBILITIES]\n{moral_content}")
             if skills_str:
                 extra.append(f"### [ALLOWED SKILLS / CAPABILITIES]\nYou are strictly limited to using these skills: {skills_str}.\nIf you need to perform an action not in this list, you MUST ask the user to configure your skills in settings.")
             if mcp_servers_str:
@@ -189,13 +478,19 @@ class AgentWrapper:
             "messages": injected_messages,
             "temperature": target_temp,
         }
+        
+        # Inject native tools if not Ollama
+        is_ollama = "ollama" in target_model.lower()
+        if not is_ollama:
+            kwargs["tools"] = AGENT_NATIVE_TOOLS
+            kwargs["tool_choice"] = "auto"
 
         # Cấu hình Custom API Base / CLIProxyAPI / OpenRouter nếu nhà cung cấp tương ứng có đăng ký URL
         provider_name = target_model.split("/")[0].lower() if "/" in target_model else ""
         
         is_custom_or_proxy = False
-        if provider_name in ["custom", "cliproxyapi", "cliproxy"]:
-            kwargs["api_base"] = self.api_bases.get(provider_name)
+        if provider_name in ["custom", "cliproxyapi", "cliproxy", "mimo"]:
+            kwargs["api_base"] = self.api_bases.get(provider_name) or ("https://api.xiaomimimo.com/v1" if provider_name == "mimo" else None)
             kwargs["api_key"] = self.api_keys.get(provider_name)
             is_custom_or_proxy = True
         elif provider_name in self.api_bases:
@@ -233,7 +528,22 @@ class AgentWrapper:
 
         try:
             response = litellm.completion(**kwargs)
-            content = response.choices[0].message.content or ""
+            message_obj = response.choices[0].message
+            if hasattr(message_obj, "tool_calls") and message_obj.tool_calls:
+                tool_results = []
+                for tool_call in message_obj.tool_calls:
+                    tool_name = tool_call.function.name
+                    tool_args_str = tool_call.function.arguments
+                    try:
+                        tool_args = json.loads(tool_args_str)
+                    except Exception:
+                        tool_args = {}
+                    
+                    result = self._handle_native_tool_call(tool_name, tool_args, role)
+                    tool_results.append(result)
+                content = "\n\n".join(tool_results)
+            else:
+                content = message_obj.content or ""
             
             # --- COST CALCULATION & RECORDING (Gap 1) ---
             try:
@@ -303,6 +613,7 @@ class AgentWrapper:
         agent_model = model
         soul_content = ""
         personality_content = ""
+        moral_content = ""
         skills_str = ""
         mcp_servers_str = ""
 
@@ -330,6 +641,10 @@ class AgentWrapper:
                     personality_content = read_workspace_file(self.workspace_id, cfg.personality_path)
                 except Exception:
                     pass
+                try:
+                    moral_content = read_workspace_file(self.workspace_id, cfg.moral_path or f"agents/{role.lower()}/MORAL.md")
+                except Exception:
+                    pass
 
                 # Kỹ năng hoạt động
                 enabled_skills = json.loads(cfg.enabled_skills or "[]")
@@ -352,6 +667,16 @@ class AgentWrapper:
 
         target_temp = temperature if temperature is not None else DEFAULT_TEMPERATURE
 
+        # Trigger simulation for testing heartbeat timeouts
+        if role and any(keyword in (messages[-1]["content"] if messages else "").lower() 
+                        for keyword in ["test_freeze", "test_hang", "giả lập treo"]):
+            import time
+            time.sleep(60) # Block the thread to trigger heartbeat checker watchdog
+            
+        # Update agent heartbeat at the start of call_stream
+        if role:
+            update_agent_heartbeat(self.workspace_id, role, self.db)
+
         # --- BUDGET CHECK (Gap 1) ---
         try:
             today_start = datetime.combine(date.today(), datetime.min.time())
@@ -373,14 +698,44 @@ class AgentWrapper:
         self._inject_env_keys()
         
         # Tạo bản sao tin nhắn để inject ngữ cảnh cấu hình động
-        injected_messages = [dict(m) for m in messages]
+        injected_messages = []
+        for m in messages:
+            m_copy = dict(m)
+            if "attachments" in m_copy and m_copy["attachments"]:
+                m_copy["content"] = parse_attachments_to_multimodal_content(self.workspace_id, m_copy.get("content", ""), m_copy.pop("attachments"))
+            injected_messages.append(m_copy)
         if injected_messages and injected_messages[0]["role"] == "system":
             sys_msg = injected_messages[0]["content"]
             extra = []
+            
+            # Query active/disabled agents
+            active_agents = []
+            disabled_agents = []
+            try:
+                from app.database import AgentConfig
+                all_agents = self.db.query(AgentConfig).filter(AgentConfig.workspace_id == self.workspace_id).all()
+                for a in all_agents:
+                    if a.is_active:
+                        active_agents.append(a.role)
+                    else:
+                        disabled_agents.append(a.role)
+            except Exception:
+                pass
+
+            if active_agents or disabled_agents:
+                status_info = "### [TÌNH TRẠNG HOẠT ĐỘNG CỦA CÁC AGENT TRONG DOANH NGHIỆP]\n"
+                status_info += f"- ĐANG HOẠT ĐỘNG (ACTIVE): {', '.join(active_agents)}\n"
+                if disabled_agents:
+                    status_info += f"- ĐÃ BỊ VÔ HIỆU HÓA (DISABLED): {', '.join(disabled_agents)}\n"
+                    status_info += "LƯU Ý QUAN TRỌNG: Bạn chỉ được mời hoặc triệu tập (create_meeting, deploy_swarm) các Agent ĐANG HOẠT ĐỘNG. Không mời hoặc giao nhiệm vụ cho các Agent đã bị vô hiệu hóa. Nếu cần thiết, hãy yêu cầu người dùng kích hoạt họ trong Settings trước."
+                extra.append(status_info)
+
             if soul_content:
                 extra.append(f"### [SOUL & CORE VALUES]\n{soul_content}")
             if personality_content:
                 extra.append(f"### [PERSONALITY & STYLE]\n{personality_content}")
+            if moral_content:
+                extra.append(f"### [MORAL & ETHICAL RESPONSIBILITIES]\n{moral_content}")
             if skills_str:
                 extra.append(f"### [ALLOWED SKILLS / CAPABILITIES]\nYou are strictly limited to using these skills: {skills_str}.\nIf you need to perform an action not in this list, you MUST ask the user to configure your skills in settings.")
             if mcp_servers_str:
@@ -414,13 +769,19 @@ class AgentWrapper:
             "temperature": target_temp,
             "stream": True,
         }
+        
+        # Inject native tools if not Ollama
+        is_ollama = "ollama" in target_model.lower()
+        if not is_ollama:
+            kwargs["tools"] = AGENT_NATIVE_TOOLS
+            kwargs["tool_choice"] = "auto"
 
         # Cấu hình Custom API Base / CLIProxyAPI / OpenRouter nếu nhà cung cấp tương ứng có đăng ký URL
         provider_name = target_model.split("/")[0].lower() if "/" in target_model else ""
         
         is_custom_or_proxy = False
-        if provider_name in ["custom", "cliproxyapi", "cliproxy"]:
-            kwargs["api_base"] = self.api_bases.get(provider_name)
+        if provider_name in ["custom", "cliproxyapi", "cliproxy", "mimo"]:
+            kwargs["api_base"] = self.api_bases.get(provider_name) or ("https://api.xiaomimimo.com/v1" if provider_name == "mimo" else None)
             kwargs["api_key"] = self.api_keys.get(provider_name)
             is_custom_or_proxy = True
         elif provider_name in self.api_bases:
@@ -455,13 +816,52 @@ class AgentWrapper:
             kwargs["response_format"] = response_format
 
         accumulated_content = []
+        tool_calls_stream = {}
         try:
             response = litellm.completion(**kwargs)
+            chunk_count = 0
             for chunk in response:
-                delta_content = chunk.choices[0].delta.content or ""
+                delta = chunk.choices[0].delta
+                delta_content = delta.content or ""
+                
+                # Periodically update heartbeat while streaming chunks
+                chunk_count += 1
+                if role and chunk_count % 10 == 0:
+                    update_agent_heartbeat(self.workspace_id, role, self.db)
+                
+                # Check for streaming tool calls
+                if hasattr(delta, "tool_calls") and delta.tool_calls:
+                    for tc in delta.tool_calls:
+                        idx = tc.index
+                        if idx not in tool_calls_stream:
+                            tool_calls_stream[idx] = {"id": "", "name": "", "arguments": []}
+                        if tc.id:
+                            tool_calls_stream[idx]["id"] = tc.id
+                        if tc.function:
+                            if tc.function.name:
+                                tool_calls_stream[idx]["name"] += tc.function.name
+                            if tc.function.arguments:
+                                tool_calls_stream[idx]["arguments"].append(tc.function.arguments)
+                                
                 if delta_content:
                     accumulated_content.append(delta_content)
                     yield delta_content
+            
+            if tool_calls_stream:
+                tool_results = []
+                for idx, tc in sorted(tool_calls_stream.items()):
+                    tool_name = tc["name"]
+                    tool_args_str = "".join(tc["arguments"])
+                    try:
+                        tool_args = json.loads(tool_args_str)
+                    except Exception:
+                        tool_args = {}
+                    
+                    result = self._handle_native_tool_call(tool_name, tool_args, role)
+                    tool_results.append(result)
+                
+                combined_result = "\n\n".join(tool_results)
+                yield combined_result
             
             # --- COST CALCULATION & RECORDING ---
             try:
@@ -514,4 +914,147 @@ class AgentWrapper:
                         yield delta_content
             except Exception:
                 raise RuntimeError(f"Lỗi gọi LLM API ({target_model}): {str(e)}")
+
+    def _handle_native_tool_call(self, tool_name: str, tool_args: Dict[str, Any], role_name: Optional[str]) -> str:
+        from app.database import ApprovalItem
+        from app.main import process_and_save_approval_item
+        import json
+        
+        workspace_id = self.workspace_id
+        db = self.db
+        
+        action_type = ""
+        proposed_content = ""
+        file_path = None
+        rationale = ""
+        risk_level = "LOW"
+        
+        try:
+            if tool_name == "write_file":
+                action_type = "write_file"
+                file_path = tool_args.get("file_path")
+                proposed_content = tool_args.get("content", "")
+                rationale = tool_args.get("rationale", "")
+                risk_level = "LOW"
+            elif tool_name == "run_command":
+                action_type = "run_command"
+                proposed_content = tool_args.get("command", "")
+                rationale = tool_args.get("explanation", "")
+                risk_level = tool_args.get("risk_level", "MEDIUM")
+            elif tool_name == "send_email":
+                action_type = "send_email"
+                recipient = tool_args.get("recipient", "")
+                subject = tool_args.get("subject", "")
+                body = tool_args.get("body", "")
+                proposed_content = f"To: {recipient}\nSubject: {subject}\n\n{body}"
+                rationale = f"Yêu cầu gửi email báo cáo tới {recipient}"
+                risk_level = "LOW"
+            elif tool_name == "deploy_swarm":
+                action_type = "deploy_swarm"
+                swarm_name = tool_args.get("swarm_name", "")
+                execution_mode = tool_args.get("execution_mode", "sequential")
+                members = tool_args.get("members", [])
+                explanation = tool_args.get("explanation", "")
+
+                # Xác thực danh sách thành viên không được trống
+                member_roles = []
+                if isinstance(members, list):
+                    for m in members:
+                        if isinstance(m, dict) and "role" in m:
+                            member_roles.append(m["role"])
+                
+                if not member_roles:
+                    return "Thất bại khi triển khai Swarm: Danh sách thành viên (members) không được để trống và phải chứa vai trò hợp lệ."
+                
+                from app.database import AgentConfig
+                nonexistent_members = []
+                inactive_members = []
+                for m_role in member_roles:
+                    cfg = db.query(AgentConfig).filter(
+                        AgentConfig.workspace_id == workspace_id,
+                        AgentConfig.role == m_role.lower()
+                    ).first()
+                    if not cfg:
+                        nonexistent_members.append(m_role)
+                    elif not cfg.is_active:
+                        inactive_members.append(m_role)
+                
+                if nonexistent_members or inactive_members:
+                    err_msgs = []
+                    if nonexistent_members:
+                        err_msgs.append(f"vai trò không tồn tại ({', '.join(nonexistent_members)})")
+                    if inactive_members:
+                        err_msgs.append(f"Agent đang bị vô hiệu hóa ({', '.join(inactive_members)})")
+                    return f"Thất bại khi triển khai Swarm: Phát hiện " + " và ".join(err_msgs) + ". Hãy điều chỉnh lại danh sách thành viên hoặc yêu cầu người dùng kích hoạt/tạo mới họ trước trong mục Settings."
+
+                proposed_content = json.dumps({
+                    "swarm_name": swarm_name,
+                    "members": members,
+                    "execution_mode": execution_mode
+                }, ensure_ascii=False)
+                rationale = explanation
+                risk_level = "MEDIUM"
+            elif tool_name == "create_meeting":
+                action_type = "deploy_swarm"
+                meeting_name = tool_args.get("meeting_name", "")
+                meeting_type = tool_args.get("meeting_type", "regular")
+                agenda = tool_args.get("agenda", "")
+                members_list = tool_args.get("members", [])
+                explanation = tool_args.get("explanation", "")
+
+                # Xác thực danh sách thành viên không được trống
+                if not members_list:
+                    return "Thất bại khi mở cuộc họp: Phải chỉ định rõ ràng danh sách các thành viên cần tham gia trong trường 'members'."
+                
+                from app.database import AgentConfig
+                nonexistent_members = []
+                inactive_members = []
+                for m_role in members_list:
+                    cfg = db.query(AgentConfig).filter(
+                        AgentConfig.workspace_id == workspace_id,
+                        AgentConfig.role == m_role.lower()
+                    ).first()
+                    if not cfg:
+                        nonexistent_members.append(m_role)
+                    elif not cfg.is_active:
+                        inactive_members.append(m_role)
+                
+                if nonexistent_members or inactive_members:
+                    err_msgs = []
+                    if nonexistent_members:
+                        err_msgs.append(f"vai trò không tồn tại ({', '.join(nonexistent_members)})")
+                    if inactive_members:
+                        err_msgs.append(f"Agent đang bị vô hiệu hóa ({', '.join(inactive_members)})")
+                    return f"Thất bại khi mở cuộc họp: Phát hiện " + " và ".join(err_msgs) + ". Hãy điều chỉnh lại danh sách thành viên hoặc yêu cầu người dùng kích hoạt/tạo mới họ trước trong mục Settings."
+                
+                swarm_members = [{"role": m_role, "task": f"Thảo luận cuộc họp ({meeting_type}): {agenda}"} for m_role in members_list]
+                proposed_content = json.dumps({
+                    "swarm_name": meeting_name,
+                    "members": swarm_members,
+                    "execution_mode": "collaborative"
+                }, ensure_ascii=False)
+                rationale = explanation
+                risk_level = "MEDIUM"
+            else:
+                return f"[System Error] Công cụ '{tool_name}' không được hỗ trợ."
+
+            # Tạo ApprovalItem và chạy qua chính sách duyệt
+            app_item = ApprovalItem(
+                workspace_id=workspace_id,
+                action_type=action_type,
+                file_path=file_path,
+                proposed_content=proposed_content,
+                rationale=rationale,
+                risk_level=risk_level
+            )
+            process_and_save_approval_item(workspace_id, app_item, db, proposer_role=role_name)
+            
+            # Gửi phản hồi lại cho Agent về trạng thái xử lý
+            if app_item.status == "approved":
+                return f"[System Execution Status] Yêu cầu '{tool_name}' đã được tự động duyệt và thực thi thành công."
+            else:
+                return f"[System Execution Status] Yêu cầu '{tool_name}' đã được gửi vào hàng đợi duyệt (Approval Queue ID: {app_item.id}). Agent cần đợi User duyệt trước khi tiếp tục."
+                
+        except Exception as e:
+            return f"[System Error] Lỗi khi xử lý Tool Call '{tool_name}': {str(e)}"
 

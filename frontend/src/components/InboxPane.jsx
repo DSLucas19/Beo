@@ -11,11 +11,17 @@ import {
 } from 'lucide-react'
 
 export default function InboxPane() {
-  const { inboxItems, fetchInbox, approveItem, rejectItem, editItemContent } = useWorkspaceStore()
-  const [selectedItemId, setSelectedItemId] = useState(null)
+  const { 
+    inboxItems, 
+    fetchInbox, 
+    approveItem, 
+    rejectItem, 
+    editItemContent,
+    selectedInboxItemId: selectedItemId,
+    setSelectedInboxItemId: setSelectedItemId
+  } = useWorkspaceStore()
   const [editMode, setEditMode] = useState(false)
   const [editedContent, setEditedContent] = useState('')
-  const [islandOpen, setIslandOpen] = useState(false)
 
   useEffect(() => {
     fetchInbox()
@@ -30,6 +36,27 @@ export default function InboxPane() {
   }, [inboxItems])
 
   const selectedItem = inboxItems.find(item => item.id === selectedItemId)
+
+  useEffect(() => {
+    if (selectedItem) {
+      setEditedContent(selectedItem.proposed_content)
+      setEditMode(false)
+    }
+  }, [selectedItemId, selectedItem])
+
+  // Parse Secretary note if any
+  let secretaryNote = ''
+  let cleanRationale = ''
+  if (selectedItem) {
+    cleanRationale = selectedItem.rationale || ''
+    if (selectedItem.rationale && selectedItem.rationale.includes('[Secretary Escalated:')) {
+      const match = selectedItem.rationale.match(/\[Secretary Escalated:\s*([^\]]*)\s*\]\s*(.*)/s)
+      if (match) {
+        secretaryNote = match[1]
+        cleanRationale = match[2]
+      }
+    }
+  }
 
   const handleSelect = (item) => {
     setSelectedItemId(item.id)
@@ -60,82 +87,12 @@ export default function InboxPane() {
 
   return (
     <div className="flex flex-col h-full bg-transparent animate-fade-in relative overflow-hidden">
-      
-      {/* FLOATING DYNAMIC ISLAND ON TOP OF THE APP */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center select-none font-sans">
-        <div 
-          onClick={() => setIslandOpen(!islandOpen)}
-          className="flex items-center gap-2.5 px-4.5 py-2.5 rounded-full dynamic-island-glass cursor-pointer hover:scale-[1.03] active:scale-[0.98] transition-all group border border-white/10"
-        >
-          <span className={`w-2 h-2 rounded-full ${inboxItems.length > 0 ? 'bg-white neon-dot-white' : 'bg-zinc-500'}`} />
-          <span className="text-xs font-bold text-white tracking-wide">
-            {selectedItem ? `Selected: ${selectedItem.file_path || 'System Command'}` : `Inbox Queue: ${inboxItems.length} pending`}
-          </span>
-          <ChevronDownIcon className={`w-3.5 h-3.5 text-zinc-400 group-hover:text-white transition-transform duration-300 ${islandOpen ? 'rotate-180' : ''}`} />
-        </div>
-        
-        {islandOpen && (
-          <div className="absolute top-12 w-80 max-h-80 overflow-y-auto rounded-2xl dynamic-island-dropdown-glass p-2.5 space-y-1 shadow-[0_25px_60px_rgba(0,0,0,0.95)] border border-white/10 z-50 animate-pane-scale-fade-enter text-left">
-            <div className="text-[10px] font-bold text-zinc-500 font-mono uppercase tracking-wider px-2 py-1 flex items-center justify-between">
-              <span>Quick Selector</span>
-              <span className="bg-white/5 px-1.5 py-0.5 rounded text-zinc-400">{inboxItems.length} items</span>
-            </div>
-            <div className="h-[1px] bg-white/[0.04] my-1" />
-            {inboxItems.length === 0 ? (
-              <div className="text-xs text-zinc-500 px-2 py-4 text-center font-medium">Inbox is empty</div>
-            ) : (
-              <div className="space-y-1">
-                {inboxItems.map(item => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      handleSelect(item);
-                      setIslandOpen(false);
-                    }}
-                    className={`w-full text-left p-2.5 rounded-md text-xs transition-all flex items-center justify-between border ${
-                      item.id === selectedItemId
-                        ? 'bg-white/[0.08] border-white/15 text-white font-semibold shadow-inner'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5 border-transparent'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1 pr-2">
-                      <div className="truncate font-semibold text-white/90">{item.file_path || 'Shell Command'}</div>
-                      <div className="text-[9px] text-zinc-500 truncate mt-0.5 font-mono">{item.action_type}</div>
-                    </div>
-                    <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-sm shrink-0 ${
-                      item.risk_level === 'HIGH' 
-                        ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' 
-                        : item.risk_level === 'MEDIUM'
-                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                        : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                    }`}>
-                      {item.risk_level}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            
-            {selectedItemId && (
-              <button
-                onClick={() => {
-                  setSelectedItemId(null);
-                  setIslandOpen(false);
-                }}
-                className="w-full text-center p-2 rounded-xl text-[11px] text-zinc-300 hover:text-white hover:bg-white/5 border border-white/[0.06] mt-2 font-bold transition-all"
-              >
-                ← Back to Card Gallery
-              </button>
-            )}
-          </div>
-        )}
-      </div>
 
       {/* MAIN VIEW AREA */}
       <div className="flex-1 overflow-hidden h-full">
         {selectedItem ? (
           // =================== DETAIL VIEW SCREEN (Widescreen) ===================
-          <div key={selectedItem.id} className="h-full flex flex-col overflow-hidden detail-pane-fade-in pt-16">
+          <div key={selectedItem.id} className="h-full flex flex-col overflow-hidden detail-pane-fade-in">
             
             {/* Header Details */}
             <div className="p-6 border-b border-white/[0.04] bg-[#0c0d12]/80 backdrop-blur text-left">
@@ -188,11 +145,22 @@ export default function InboxPane() {
                 </div>
               </div>
 
+              {/* AI Secretary Alert Banner */}
+              {secretaryNote && (
+                <div className="mb-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/15 flex items-start gap-3 text-left animate-fade-in shadow-sm select-none">
+                  <div className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0 animate-pulse" />
+                  <div className="flex-1">
+                    <span className="text-[9px] font-bold text-amber-400 font-mono uppercase tracking-wider block mb-0.5">AI Secretary Escalated Review</span>
+                    <p className="text-xs text-zinc-300 leading-relaxed font-sans">{secretaryNote}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Grid Metadata */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs font-sans border-t border-white/[0.04] pt-4 mt-2">
                 <div>
                   <span className="block text-zinc-500 text-[9px] uppercase font-mono tracking-wider mb-0.5">Rationale / Purpose</span>
-                  <span className="text-zinc-300 font-medium leading-relaxed">{selectedItem.rationale}</span>
+                  <span className="text-zinc-300 font-medium leading-relaxed">{cleanRationale}</span>
                 </div>
                 <div>
                   <span className="block text-zinc-500 text-[9px] uppercase font-mono tracking-wider mb-0.5">Estimated Cost</span>
@@ -257,7 +225,7 @@ export default function InboxPane() {
           </div>
         ) : (
           // =================== CARD GALLERY VIEW SCREEN ===================
-          <div className="h-full overflow-y-auto p-8 pt-20 space-y-6 max-w-6xl mx-auto text-left select-none font-sans file-content-fade-in">
+          <div className="h-full overflow-y-auto p-8 space-y-6 max-w-6xl mx-auto text-left select-none font-sans file-content-fade-in">
 
 
             {inboxItems.length === 0 ? (

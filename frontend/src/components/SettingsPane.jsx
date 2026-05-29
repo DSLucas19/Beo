@@ -17,7 +17,9 @@ import {
   ZapIcon,
   ServerIcon,
   TerminalIcon,
-  LinkIcon
+  LinkIcon,
+  AlertTriangleIcon,
+  Trash2Icon
 } from 'lucide-react'
 
 export default function SettingsPane() {
@@ -41,13 +43,34 @@ export default function SettingsPane() {
     fetchPresets,
     spawnCliproxy,
     systemSettings,
-    updateSystemSettings
+    updateSystemSettings,
+    deleteWorkspace,
+    workspaceName
   } = useWorkspaceStore()
+
+  const handleDeleteCompany = async () => {
+    const confirm1 = window.confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn công ty "${workspaceName}"?\nHành động này sẽ xóa toàn bộ API Keys, Agent Blueprints, tài liệu vật lý và lịch sử trò chuyện.`);
+    if (!confirm1) return;
+    
+    const confirm2 = window.prompt(`Để xác nhận xóa, vui lòng nhập chữ "DELETE" vào ô bên dưới:`);
+    if (confirm2 !== 'DELETE') {
+      alert("Xác nhận không khớp. Hủy bỏ quá trình xóa.");
+      return;
+    }
+    
+    const ok = await deleteWorkspace();
+    if (ok) {
+      alert("Đã xóa công ty và toàn bộ dữ liệu thành công!");
+    } else {
+      alert("Đã xảy ra lỗi trong quá trình xóa công ty.");
+    }
+  }
 
   // System settings state
   const [localCostCap, setLocalCostCap] = useState('5.00')
   const [localLoopLimit, setLocalLoopLimit] = useState(5)
   const [localSandbox, setLocalSandbox] = useState(true)
+  const [localApprovalPolicy, setLocalApprovalPolicy] = useState('user')
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsSuccess, setSettingsSuccess] = useState(null)
   const [settingsError, setSettingsError] = useState(null)
@@ -57,6 +80,7 @@ export default function SettingsPane() {
       setLocalCostCap(systemSettings.daily_cost_cap !== undefined ? systemSettings.daily_cost_cap.toString() : '5.00')
       setLocalLoopLimit(systemSettings.loop_guard_limit !== undefined ? systemSettings.loop_guard_limit : 5)
       setLocalSandbox(systemSettings.shell_security_sandbox !== undefined ? systemSettings.shell_security_sandbox : true)
+      setLocalApprovalPolicy(systemSettings.approval_policy !== undefined ? systemSettings.approval_policy : 'user')
     }
   }, [systemSettings])
 
@@ -67,7 +91,8 @@ export default function SettingsPane() {
     const success = await updateSystemSettings({
       daily_cost_cap: parseFloat(localCostCap) || 5.00,
       loop_guard_limit: parseInt(localLoopLimit) || 5,
-      shell_security_sandbox: localSandbox
+      shell_security_sandbox: localSandbox,
+      approval_policy: localApprovalPolicy
     })
     setSavingSettings(false)
     if (success) {
@@ -144,18 +169,20 @@ export default function SettingsPane() {
     return () => window.removeEventListener('focus', handleFocus)
   }, [authPending])
 
-  const fetchModelsForProvider = async (provider, key, url) => {
+  const fetchModelsForProvider = async (provider, key, url, fallbackModel = null) => {
     setScanningModels(true)
     try {
       const res = await scanApiKeyModels(provider, key || null, url || null)
       if (res && res.models) {
         setScannedModels(res.models)
         
-        // Find saved model configuration
+        // Prioritize:
+        // 1. fallbackModel (the model value currently passed by the user or useEffect)
+        // 2. saved database model name
         const saved = apiKeysDetail?.find(k => k.provider === provider)
-        const savedModelName = saved?.model || ''
+        const savedModelName = fallbackModel || saved?.model || ''
         
-        // If there's an active model in state (or saved in db), check if it's in the list
+        // If there's an active model name, check if it's in the list
         if (savedModelName && res.models.includes(savedModelName)) {
           setCustomModel(savedModelName)
           setIsManualModelInput(false)
@@ -190,23 +217,34 @@ export default function SettingsPane() {
         currentModel = saved.model || ''
         setCliproxyUrl(currentUrl)
         setCustomModel(currentModel)
+        setApiKeyInput('••••••••••••••••')
       } else {
         // Reset defaults
         if (selectedProvider === 'cliproxyapi') {
           currentUrl = 'http://localhost:8317/v1'
+          currentModel = ''
         } else if (selectedProvider === 'openrouter') {
           currentUrl = 'https://openrouter.ai/api/v1'
+          currentModel = ''
+        } else if (selectedProvider === 'mimo') {
+          currentUrl = 'https://api.xiaomimimo.com/v1'
+          currentModel = 'mimo-v2.5-pro'
         } else if (selectedProvider === 'custom') {
           currentUrl = ''
+          currentModel = ''
+        } else {
+          currentUrl = ''
+          currentModel = ''
         }
         setCliproxyUrl(currentUrl)
-        setCustomModel('')
+        setCustomModel(currentModel)
+        setApiKeyInput('')
       }
       setTestResult(null)
       setIsManualModelInput(false)
       
       // Auto-scan models from the saved provider key on mount or provider select
-      fetchModelsForProvider(selectedProvider, null, currentUrl)
+      fetchModelsForProvider(selectedProvider, null, currentUrl, currentModel)
     }
   }, [selectedProvider, apiKeysDetail])
 
@@ -256,6 +294,9 @@ export default function SettingsPane() {
       urlParam = cliproxyUrl.trim() || 'http://localhost:8317/v1'
     } else if (selectedProvider === 'openrouter') {
       urlParam = cliproxyUrl.trim() || 'https://openrouter.ai/api/v1'
+    } else if (selectedProvider === 'mimo') {
+      urlParam = cliproxyUrl.trim() || 'https://api.xiaomimimo.com/v1'
+      modelParam = customModel.trim() || null
     } else if (selectedProvider === 'custom') {
       urlParam = cliproxyUrl.trim() || null
       modelParam = customModel.trim() || null
@@ -282,6 +323,9 @@ export default function SettingsPane() {
       urlParam = cliproxyUrl.trim() || 'http://localhost:8317/v1'
     } else if (selectedProvider === 'openrouter') {
       urlParam = cliproxyUrl.trim() || 'https://openrouter.ai/api/v1'
+    } else if (selectedProvider === 'mimo') {
+      urlParam = cliproxyUrl.trim() || 'https://api.xiaomimimo.com/v1'
+      modelParam = customModel.trim() || null
     } else if (selectedProvider === 'custom') {
       urlParam = cliproxyUrl.trim() || null
       modelParam = customModel.trim() || null
@@ -292,7 +336,7 @@ export default function SettingsPane() {
     setTestResult(res)
 
     if (res && res.status === 'success') {
-      fetchModelsForProvider(selectedProvider, apiKeyInput.trim(), urlParam)
+      fetchModelsForProvider(selectedProvider, apiKeyInput.trim(), urlParam, customModel)
     }
   }
 
@@ -404,6 +448,7 @@ Hãy mở PowerShell / Command Prompt trên máy của bạn, dán lệnh trên 
     { id: 'gemini', name: 'Google Gemini AI', desc: 'Default model for Beo OS', icon: SparklesIcon },
     { id: 'openai', name: 'OpenAI GPT-4', desc: 'Logic and coding engine', icon: CpuIcon },
     { id: 'anthropic', name: 'Anthropic Claude 3.5', desc: 'Writing and planning engine', icon: ZapIcon },
+    { id: 'mimo', name: 'Xiaomi MiMo', desc: 'Reasoning and flagship models', icon: SparklesIcon },
     { id: 'openrouter', name: 'OpenRouter', desc: 'Unified multi-model gateway', icon: ServerIcon },
     { id: 'cohere', name: 'Cohere API', desc: 'Dynamic RAG lookup API', icon: GlobeIcon },
     { id: 'groq', name: 'Groq Cloud', desc: 'High-speed inference API', icon: CpuIcon },
@@ -493,7 +538,7 @@ Hãy mở PowerShell / Command Prompt trên máy của bạn, dán lệnh trên 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-6">
                 
                 {/* Form to Save Key */}
-                <form onSubmit={handleSaveKey} className="space-y-6">
+                <div className="space-y-6">
 
                   {selectedProvider === 'cliproxyapi' && (
                     <div className="flex flex-col gap-2 animate-fade-in">
@@ -533,21 +578,27 @@ Hãy mở PowerShell / Command Prompt trên máy của bạn, dán lệnh trên 
                       type="password"
                       value={apiKeyInput}
                       onChange={(e) => setApiKeyInput(e.target.value)}
+                      onFocus={(e) => {
+                        if (apiKeyInput.startsWith('•')) {
+                          e.target.select()
+                        }
+                      }}
+                      autoComplete="new-password"
                       placeholder="Paste secret API key..."
                       className="bg-background-sidebar border border-border-muted/30 rounded-2xl p-3.5 text-xs text-content-normal outline-none focus:border-border-accent/80 transition-all duration-300 font-mono shadow-sm"
                     />
                   </div>
 
-                  {(selectedProvider === 'cliproxyapi' || selectedProvider === 'openrouter' || selectedProvider === 'custom') && (
+                  {(selectedProvider === 'cliproxyapi' || selectedProvider === 'openrouter' || selectedProvider === 'custom' || selectedProvider === 'mimo') && (
                     <div className="flex flex-col gap-2 animate-fade-in">
                       <label className="text-[10px] font-bold text-content-muted uppercase tracking-wider font-mono">
-                        {selectedProvider === 'openrouter' ? 'OpenRouter Gateway URL' : selectedProvider === 'custom' ? 'Custom API Base URL' : 'CLIProxyAPI Gateway URL'}
+                        {selectedProvider === 'openrouter' ? 'OpenRouter Gateway URL' : selectedProvider === 'custom' ? 'Custom API Base URL' : selectedProvider === 'mimo' ? 'MiMo API Base URL' : 'CLIProxyAPI Gateway URL'}
                       </label>
                       <input
                         type="text"
                         value={cliproxyUrl}
                         onChange={(e) => setCliproxyUrl(e.target.value)}
-                        placeholder={selectedProvider === 'openrouter' ? 'https://openrouter.ai/api/v1' : selectedProvider === 'custom' ? 'https://your-api.example.com/v1' : 'http://localhost:8317/v1'}
+                        placeholder={selectedProvider === 'openrouter' ? 'https://openrouter.ai/api/v1' : selectedProvider === 'custom' ? 'https://your-api.example.com/v1' : selectedProvider === 'mimo' ? 'https://api.xiaomimimo.com/v1' : 'http://localhost:8317/v1'}
                         className="bg-background-sidebar border border-border-muted/30 rounded-2xl p-3.5 text-xs text-content-normal outline-none focus:border-border-accent/80 transition-all duration-300 font-mono shadow-sm"
                       />
                     </div>
@@ -562,7 +613,7 @@ Hãy mở PowerShell / Command Prompt trên máy của bạn, dán lệnh trên 
                         </label>
                         <button
                           type="button"
-                          onClick={() => fetchModelsForProvider(selectedProvider, apiKeyInput.trim(), selectedProvider === 'cliproxyapi' || selectedProvider === 'openrouter' || selectedProvider === 'custom' ? cliproxyUrl.trim() : null)}
+                          onClick={() => fetchModelsForProvider(selectedProvider, apiKeyInput.trim(), selectedProvider === 'cliproxyapi' || selectedProvider === 'openrouter' || selectedProvider === 'custom' || selectedProvider === 'mimo' ? cliproxyUrl.trim() : null, customModel)}
                           disabled={scanningModels}
                           className="text-[9px] font-bold text-content-muted hover:text-content-highlight font-mono flex items-center gap-1 transition-colors"
                         >
@@ -643,7 +694,8 @@ Hãy mở PowerShell / Command Prompt trên máy của bạn, dán lệnh trên 
 
                   <div className="flex gap-4">
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={handleSaveKey}
                       className="px-6 py-3.5 rounded-2xl bg-white hover:bg-zinc-200 hover:scale-[1.02] text-black text-xs font-bold shadow-lg hover:shadow-xl flex items-center justify-center gap-2 transition-all duration-300"
                     >
                       <PlusIcon className="w-3.5 h-3.5 text-black" />
@@ -664,7 +716,7 @@ Hãy mở PowerShell / Command Prompt trên máy của bạn, dán lệnh trên 
                       <span>{testingConnection ? 'Testing...' : 'Test Connection'}</span>
                     </button>
                   </div>
-                </form>
+                </div>
 
                 {/* Configurations Checklist */}
                 <div className="space-y-3.5 text-left">
@@ -736,7 +788,7 @@ Hãy mở PowerShell / Command Prompt trên máy của bạn, dán lệnh trên 
                 </h2>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="p-6 bg-border-muted/10 border border-border-muted/20 rounded-2xl flex flex-col gap-2.5 text-left shadow-sm">
                   <span className="text-[9px] text-content-muted uppercase tracking-wider font-mono">Loop Guard</span>
                   <div className="flex items-center gap-2.5">
@@ -797,6 +849,25 @@ Hãy mở PowerShell / Command Prompt trên máy của bạn, dán lệnh trên 
                     </span>
                   </span>
                 </div>
+
+                <div className="p-6 bg-border-muted/10 border border-border-muted/20 rounded-2xl flex flex-col gap-2.5 text-left shadow-sm">
+                  <span className="text-[9px] text-content-muted uppercase tracking-wider font-mono">Approval Policy</span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-bold text-content-highlight">Flow:</span>
+                    <select
+                      value={localApprovalPolicy}
+                      onChange={(e) => setLocalApprovalPolicy(e.target.value)}
+                      className="bg-background-sidebar border border-border-muted/30 rounded-xl px-2.5 py-1.5 text-[10px] text-white outline-none focus:border-border-accent/80 font-sans"
+                    >
+                      <option value="user">Founder Review (Manual)</option>
+                      <option value="auto">Auto Approve Actions</option>
+                      <option value="secretary">Secretary Delegation</option>
+                    </select>
+                  </div>
+                  <span className="text-[10px] text-content-muted leading-normal font-sans">
+                    Choose whether AI actions execute automatically, require Secretary clearance, or wait for manual sign-off.
+                  </span>
+                </div>
               </div>
 
               <div className="mt-6 pt-4 border-t border-white/[0.04] flex items-center justify-between">
@@ -838,24 +909,26 @@ Hãy mở PowerShell / Command Prompt trên máy của bạn, dán lệnh trên 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 animate-fade-in">
             
             {/* Roles Sidebar selection */}
-            <div className="md:col-span-1 bg-background-sidebar border border-border-muted/30 rounded-3xl p-4 flex flex-col space-y-2 h-fit shadow-md select-none">
+            <div className="md:col-span-1 bg-background-sidebar border border-border-muted/30 rounded-3xl p-4 flex flex-col space-y-2 max-h-[600px] overflow-y-auto shadow-md select-none">
               <span className="text-[9px] font-bold text-content-muted uppercase tracking-wider font-mono p-2 block text-left">
                 Select Agent
               </span>
-              {['secretary', 'planner', 'developer', 'marketer', 'finance'].map(role => {
+              {(agents && agents.length > 0 ? agents.map(a => a.role) : ['secretary', 'coo', 'cto', 'cmo', 'cfo', 'cpo']).map(role => {
                 const isSelected = selectedAgentRole === role
+                const agentObj = agents?.find(a => a.role === role)
+                const displayName = agentObj?.name || role
                 return (
                   <button
                     key={role}
                     onClick={() => setSelectedAgentRole(role)}
-                    className={`w-full text-left flex items-center gap-3 px-4.5 py-3.5 rounded-2xl text-xs font-bold capitalize transition-all duration-300 ${
+                    className={`w-full text-left flex items-center gap-3 px-4.5 py-3.5 rounded-2xl text-xs font-bold uppercase transition-all duration-300 ${
                       isSelected 
                         ? 'bg-border-muted text-content-highlight shadow-md scale-105' 
                         : 'text-content-muted hover:text-content-normal hover:bg-border-muted/10 hover:translate-x-1'
                     }`}
                   >
                     <UserCheckIcon className="w-3.5 h-3.5 text-content-muted" />
-                    <span>{role}</span>
+                    <span className="truncate">{displayName}</span>
                   </button>
                 )
               })}
@@ -871,7 +944,7 @@ Hãy mở PowerShell / Command Prompt trên máy của bạn, dán lệnh trên 
                   <div>
                     <h3 className="text-sm font-bold text-content-highlight uppercase tracking-wide font-display flex items-center gap-1.5">
                       <SparklesIcon className="w-4 h-4 text-white" />
-                      Agent Profile: {selectedAgentRole}
+                      Agent Profile: {agents?.find(a => a.role === selectedAgentRole)?.name || selectedAgentRole}
                     </h3>
                     <p className="text-[10px] text-content-muted mt-0.5">
                       Configure workspace model options, skills allocations, and system permissions.
@@ -1161,8 +1234,136 @@ Hãy mở PowerShell / Command Prompt trên máy của bạn, dán lệnh trên 
 
               </div>
             </section>
+
+            {/* SKILL & MCP PRESETS MARKETPLACE */}
+            <section className="bg-background-card border border-border-muted/30 rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.12)] text-left">
+              <div className="flex items-center justify-between mb-4 border-b border-border-muted/20 pb-4">
+                <div className="flex items-center gap-2">
+                  <SparklesIcon className="w-4 h-4 text-white animate-pulse" />
+                  <h2 className="text-sm font-bold text-content-highlight font-display uppercase tracking-wide">
+                    Kho lưu trữ Skill & MCP (Preset Connectors)
+                  </h2>
+                </div>
+                <span className="text-[10px] bg-white/5 border border-white/10 text-content-muted font-mono px-2.5 py-1 rounded-full">
+                  Click to Auto-Activate
+                </span>
+              </div>
+              
+              <p className="text-xs text-content-muted leading-relaxed mb-6 font-sans">
+                Kích hoạt nhanh các kỹ năng và cổng kết nối nâng cao được định hình sẵn. Click "Kích hoạt" để tích hợp ngay lập tức các cổng kết nối này vào hệ thống Agent của bạn mà không cần cài đặt phức tạp.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {presets?.mcp_servers?.map(preset => {
+                  const isRegistered = mcpServers?.some(s => s.name === preset.key)
+                  
+                  return (
+                    <div 
+                      key={preset.key} 
+                      className={`p-5 rounded-2xl border flex flex-col justify-between transition-all duration-300 ${
+                        isRegistered 
+                          ? 'bg-emerald-950/10 border-emerald-500/20 opacity-80' 
+                          : 'bg-border-muted/10 border-border-muted/20 hover:border-white/20 hover:bg-white/[0.02]'
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs text-content-highlight font-mono">
+                            {preset.name}
+                          </span>
+                          {isRegistered ? (
+                            <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                              ACTIVE
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-white/[0.04]">
+                              AVAILABLE
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-[11px] text-content-muted leading-relaxed min-h-[48px]">
+                          {preset.description}
+                        </p>
+
+                        {/* List preset tools */}
+                        {preset.tools && preset.tools.length > 0 && (
+                          <div className="space-y-1 pt-2 border-t border-white/[0.04]">
+                            <span className="text-[8px] font-bold text-content-muted uppercase tracking-wider font-mono block">
+                              Granted Tools ({preset.tools.length})
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {preset.tools.map(t => (
+                                <span 
+                                  key={t.name} 
+                                  title={t.description} 
+                                  className="text-[9px] font-mono bg-white/5 hover:bg-white/10 text-content-normal px-2 py-0.5 rounded-md border border-white/[0.04] transition-colors"
+                                >
+                                  {t.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-5 pt-3 border-t border-white/[0.04] flex items-center justify-between">
+                        <span className="text-[9px] text-content-muted font-mono">
+                          {preset.default_url}
+                        </span>
+                        
+                        <button
+                          type="button"
+                          disabled={isRegistered}
+                          onClick={async () => {
+                            const ok = await registerMcpServer(preset.key, preset.default_url);
+                            if (ok) {
+                              alert(`Kích hoạt thành công cổng kết nối ${preset.name}!`);
+                              fetchMcpServers();
+                            } else {
+                              alert(`Không thể tự động kích hoạt ${preset.name}.`);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-xl font-bold text-[10px] transition-all duration-300 ${
+                            isRegistered 
+                              ? 'bg-transparent text-emerald-400 border border-emerald-500/20 cursor-not-allowed' 
+                              : 'bg-white hover:bg-zinc-200 text-black hover:scale-[1.02]'
+                          }`}
+                        >
+                          {isRegistered ? 'Đã Kích Hoạt' : 'Kích hoạt'}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
           </div>
         )}
+
+        {/* Danger Zone: Permanent Delete Company */}
+        <div className="mt-12 pt-8 border-t border-dashed border-rose-500/20 text-left">
+          <div className="bg-rose-950/5 border border-dashed border-rose-500/30 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)]">
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-rose-400 font-display uppercase tracking-wider flex items-center gap-2">
+                <AlertTriangleIcon className="w-4 h-4 text-rose-500 animate-pulse" />
+                Danger Zone - Vùng Nguy Hiểm
+              </h3>
+              <p className="text-xs text-content-muted leading-relaxed max-w-2xl">
+                Xóa vĩnh viễn toàn bộ dữ liệu của công ty <strong>"{workspaceName}"</strong> bao gồm khóa API, cấu hình AI Agents, tệp tin nội bộ, các Blueprints (SOUL, PERSONALITY), luồng quy trình công việc và toàn bộ lịch sử hội thoại. Hành động này là <strong>không thể khôi phục</strong>.
+              </p>
+            </div>
+            
+            <button
+              type="button"
+              onClick={handleDeleteCompany}
+              className="shrink-0 px-6 py-3.5 rounded-2xl bg-transparent hover:bg-rose-500/10 border border-dashed border-rose-500 hover:border-rose-400 text-rose-400 hover:text-rose-300 text-xs font-bold transition-all duration-300 flex items-center gap-2"
+            >
+              <Trash2Icon className="w-3.5 h-3.5" />
+              <span>Delete Company</span>
+            </button>
+          </div>
+        </div>
 
       </div>
     </div>

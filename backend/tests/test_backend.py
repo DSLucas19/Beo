@@ -167,11 +167,11 @@ def test_database_and_workflow_steps():
 
 def test_get_agent_messages():
     history = [{"role": "user", "content": "Hello"}]
-    messages = get_agent_messages("developer", history)
+    messages = get_agent_messages("cto", history)
     
     assert len(messages) == 2
     assert messages[0]["role"] == "system"
-    assert "AI Phát triển (Developer Agent)" in messages[0]["content"]
+    assert "Giám đốc Công nghệ AI (CTO Agent" in messages[0]["content"]
 
 # ==================== TEST COMMAND EXECUTION IN INBOX ====================
 

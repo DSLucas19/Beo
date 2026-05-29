@@ -74,7 +74,20 @@ export const getRecipientOptions = (departments = []) => {
 
 export const getRecipientLabel = (tab) => {
   if (tab === 'secretary_chat') return 'Secretary'
-  if (tab?.startsWith('dep_')) return titleCase(tab.replace(/^dep_/, ''))
+  if (tab?.startsWith('dep_')) {
+    const raw = tab.replace(/^dep_/, '')
+    if (raw.includes('_team_')) {
+      const parts = raw.split('_team_')
+      const depName = parts[0].toUpperCase() // e.g. CTO, CMO
+      const teamName = titleCase(parts[1])  // e.g. Team 1
+      return `${depName} ${teamName}`
+    }
+    if (raw.includes('_chat_group')) {
+      const depName = raw.replace('_chat_group', '').toUpperCase()
+      return `${depName} Group`
+    }
+    return titleCase(raw)
+  }
   if (tab?.startsWith('proj_')) return titleCase(tab.replace(/^proj_/, ''))
   return titleCase(tab || 'Secretary')
 }

@@ -17,9 +17,9 @@ import {
 
 const DEPT_SEED_DATA = {
   planning: [
-    { id: 'PLN-001', title: 'Q3 Strategic Competitor Analysis', status: 'In Progress', priority: 'High', assignee: 'Sarah (Planner Agent)', dueDate: '2026-06-15', quarter: 'Q3', impact: 'High', description: 'Perform in-depth competitor pricing and features review for the new SEO SaaS.' },
+    { id: 'PLN-001', title: 'Q3 Strategic Competitor Analysis', status: 'In Progress', priority: 'High', assignee: 'Sarah (COO Agent)', dueDate: '2026-06-15', quarter: 'Q3', impact: 'High', description: 'Perform in-depth competitor pricing and features review for the new SEO SaaS.' },
     { id: 'PLN-002', title: 'Establish Weekly Sync SOP', status: 'Completed', priority: 'Medium', assignee: 'Lucas', dueDate: '2026-05-20', quarter: 'Q2', impact: 'Medium', description: 'Define standard operating procedures for sync meetings.' },
-    { id: 'PLN-003', title: 'Set Up Onboarding Wizard UI Flow', status: 'Backlog', priority: 'High', assignee: 'John (Developer)', dueDate: '2026-07-01', quarter: 'Q3', impact: 'High', description: 'Draft the screen-by-screen navigation maps for user setup.' }
+    { id: 'PLN-003', title: 'Set Up Onboarding Wizard UI Flow', status: 'Backlog', priority: 'High', assignee: 'John (CTO Agent)', dueDate: '2026-07-01', quarter: 'Q3', impact: 'High', description: 'Draft the screen-by-screen navigation maps for user setup.' }
   ],
   engineering: [
     { id: 'DEV-001', title: 'Implement SSE Streaming Endpoint', status: 'Merged', priority: 'Critical', type: 'Feature', repository: 'backend-api', branch: 'main', storyPoints: 5, description: 'Add support for Server-Sent Events in chatbot API for smooth agent updates.' },
@@ -33,7 +33,7 @@ const DEPT_SEED_DATA = {
   ],
   finance: [
     { id: 'FIN-001', title: 'Google Cloud Hosting Payment', status: 'Paid', priority: 'High', category: 'Server Infrastructure', amount: 245.80, paymentMethod: 'Credit Card', date: '2026-05-25', requestedBy: 'Dev Lead', description: 'Monthly hosting charges for development and staging environments.' },
-    { id: 'FIN-002', title: 'Gemini Pro API Over-limit Review', status: 'Pending Approval', priority: 'Critical', category: 'API Call Costs', amount: 78.40, paymentMethod: 'Stripe', date: '2026-05-27', requestedBy: 'Planner Agent', description: 'Extra LLM queries during parallel workflow execution test.' },
+    { id: 'FIN-002', title: 'Gemini Pro API Over-limit Review', status: 'Pending Approval', priority: 'Critical', category: 'API Call Costs', amount: 78.40, paymentMethod: 'Stripe', date: '2026-05-27', requestedBy: 'COO Agent', description: 'Extra LLM queries during parallel workflow execution test.' },
     { id: 'FIN-003', title: 'LLM Retainer Agreement retainer', status: 'Approved', priority: 'Medium', category: 'Legal Consulting', amount: 1500.00, paymentMethod: 'Bank Wire', date: '2026-05-28', requestedBy: 'Founder Lucas', description: 'Upfront legal retainer for software license terms validation.' }
   ]
 }
@@ -131,17 +131,44 @@ export default function TeamViewPane({ department }) {
 
     // Load views
     const savedViews = localStorage.getItem(viewsStorageKey)
-    if (savedViews) {
+    if (savedViews && JSON.parse(savedViews).length > 0) {
       const parsedViews = JSON.parse(savedViews)
       setViews(parsedViews)
-      if (parsedViews.length > 0) {
-        setSelectedViewId(parsedViews[0].id)
-      } else {
-        setSelectedViewId('')
-      }
+      setSelectedViewId(parsedViews[0].id)
     } else {
-      setViews([])
-      setSelectedViewId('')
+      // Auto-seed standard enterprise views directly
+      const defaultViews = [
+        {
+          id: 'view_default_all',
+          name: 'All Items (Table)',
+          layout: 'table',
+          filterProperty: 'all',
+          filterValue: '',
+          sortProperty: 'id',
+          sortOrder: 'asc'
+        },
+        {
+          id: 'view_default_high',
+          name: 'High Priority (Cards)',
+          layout: 'cards',
+          filterProperty: 'priority',
+          filterValue: 'High',
+          sortProperty: 'id',
+          sortOrder: 'asc'
+        },
+        {
+          id: 'view_default_board',
+          name: 'Status Board',
+          layout: 'board',
+          filterProperty: 'all',
+          filterValue: '',
+          sortProperty: 'id',
+          sortOrder: 'asc'
+        }
+      ]
+      setViews(defaultViews)
+      localStorage.setItem(viewsStorageKey, JSON.stringify(defaultViews))
+      setSelectedViewId(defaultViews[0].id)
     }
   }, [dataStorageKey, viewsStorageKey, deptKey])
 
@@ -223,16 +250,17 @@ export default function TeamViewPane({ department }) {
     setSortOrder('asc')
   }
 
-  // Delete current view handler
-  const handleDeleteView = () => {
-    if (!activeView) return
-    const updatedViews = views.filter(v => v.id !== activeView.id)
+  // Delete view handler by ID
+  const handleDeleteView = (viewId) => {
+    const updatedViews = views.filter(v => v.id !== viewId)
+    if (updatedViews.length === 0) {
+      handleSeedDefaultViews()
+      return
+    }
     setViews(updatedViews)
     localStorage.setItem(viewsStorageKey, JSON.stringify(updatedViews))
-    if (updatedViews.length > 0) {
+    if (selectedViewId === viewId) {
       setSelectedViewId(updatedViews[0].id)
-    } else {
-      setSelectedViewId('')
     }
   }
 
@@ -331,78 +359,52 @@ export default function TeamViewPane({ department }) {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-950/10 text-left overflow-hidden">
-      {/* Header bar */}
-      <div className="h-16 border-b border-white/[0.04] px-6 flex items-center justify-between bg-zinc-950/20 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05] text-zinc-300">
-            <EyeIcon className="w-4 h-4" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider capitalize">{deptKey} View Panel</h2>
-            <p className="text-[10px] text-zinc-500">Custom business visualizations of the team database</p>
-          </div>
+      {/* Sleek Minimalist Top Divider & View Bar */}
+      <div className="border-t border-white/[0.04] pt-4 px-6 flex items-center justify-between bg-transparent shrink-0">
+        {/* Left Side: Notion-style View Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto max-w-[75%] no-scrollbar py-0.5">
+          {views.map(v => {
+            const isActive = v.id === selectedViewId
+            return (
+              <button
+                key={v.id}
+                onClick={() => setSelectedViewId(v.id)}
+                className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${
+                  isActive
+                    ? 'bg-white/[0.07] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
+                }`}
+              >
+                <span className="truncate">{v.name}</span>
+                
+                {/* Deletion inline trigger on hover */}
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDeleteView(v.id)
+                  }}
+                  className="ml-1 p-0.5 rounded hover:bg-white/10 text-zinc-500 hover:text-zinc-200 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                  title="Delete View"
+                >
+                  <XIcon className="w-2.5 h-2.5" />
+                </span>
+              </button>
+            )
+          })}
         </div>
 
-        {/* View selection controls */}
-        {views.length > 0 && (
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedViewId}
-              onChange={(e) => setSelectedViewId(e.target.value)}
-              className="bg-zinc-900 border border-white/[0.08] hover:border-white/20 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none transition-colors font-semibold"
-            >
-              {views.map(v => (
-                <option key={v.id} value={v.id}>{v.name} ({v.layout})</option>
-              ))}
-            </select>
-            
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] text-white text-xs font-semibold flex items-center gap-1 transition-all"
-              title="Add new View representation"
-            >
-              <PlusIcon className="w-3.5 h-3.5" />
-              <span>New View</span>
-            </button>
-
-            <button
-              onClick={handleDeleteView}
-              className="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 text-rose-400 transition-all"
-              title="Delete current representation"
-            >
-              <Trash2Icon className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+        {/* Right Side: Sleek lowercase 'add view' button */}
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="text-zinc-400 hover:text-white hover:underline transition-all text-xs font-semibold px-3 py-1.5 flex items-center gap-1 shrink-0"
+        >
+          <span>add view</span>
+        </button>
       </div>
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-auto p-6">
-        {views.length === 0 ? (
-          /* Empty State */
-          <div className="h-[60vh] max-w-md mx-auto flex flex-col items-center justify-center text-center p-6 bg-zinc-900/10 border border-white/[0.03] rounded-3xl mt-6">
-            <LayersIcon className="w-12 h-12 text-zinc-600 mb-4 opacity-40 animate-pulse" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">No Views Configured</h3>
-            <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
-              This department has no custom view representations of its dataset yet. You can create a new view to layout, filter, and sort tasks and items specifically.
-            </p>
-            <div className="flex flex-col gap-2 mt-6 w-full">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="w-full py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-white/5"
-              >
-                <PlusCircleIcon className="w-4 h-4" />
-                <span>Create View Customly</span>
-              </button>
-              <button
-                onClick={handleSeedDefaultViews}
-                className="w-full py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-zinc-400 hover:text-white text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
-              >
-                <span>Seed Standard Enterprise Views</span>
-              </button>
-            </div>
-          </div>
-        ) : (
+        {activeView && (
           /* Render Active View */
           <div className="space-y-4">
             {/* Toolbar for the Active View */}
@@ -636,118 +638,344 @@ export default function TeamViewPane({ department }) {
 
       {/* CREATE VIEW DIALOG/MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md bg-zinc-950 border border-white/[0.08] rounded-2xl shadow-2xl p-6 relative">
-            <button
-              onClick={() => setShowCreateModal(false)}
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white"
-            >
-              <XIcon className="w-4 h-4" />
-            </button>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-1.5">
-              <EyeIcon className="w-4 h-4" />
-              <span>Create Custom Representation</span>
-            </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fade-in">
+          <div className="w-full max-w-4xl bg-zinc-950 border border-white/[0.08] rounded-3xl shadow-[0_24px_60px_rgba(0,0,0,0.85)] p-6 relative flex flex-col gap-5 text-left">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-mono text-zinc-500 font-bold uppercase tracking-wider">Configure Representation</span>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="text-zinc-500 hover:text-white transition-colors"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
 
-            <form onSubmit={handleCreateView} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">View Name</label>
-                <input
-                  type="text"
-                  required
-                  value={viewName}
-                  onChange={(e) => setViewName(e.target.value)}
-                  placeholder="e.g. Completed Tasks, High Budget, Bug Backlog..."
-                  className="w-full bg-zinc-900 border border-white/[0.08] focus:border-white/30 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none transition-colors"
-                />
+            {/* Layout selector buttons (top) */}
+            <div className="grid grid-cols-4 gap-3 pb-4 border-b border-white/[0.04]">
+              <button
+                type="button"
+                onClick={() => setViewLayout('table')}
+                className={`flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl select-none transition-all ${
+                  viewLayout === 'table'
+                    ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.08)] font-bold'
+                    : 'bg-white/[0.01] border border-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.03]'
+                }`}
+              >
+                <ListIcon className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Table View</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewLayout('board')}
+                className={`flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl select-none transition-all ${
+                  viewLayout === 'board'
+                    ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.08)] font-bold'
+                    : 'bg-white/[0.01] border border-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.03]'
+                }`}
+              >
+                <ColumnsIcon className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Status Board</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewLayout('cards')}
+                className={`flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl select-none transition-all ${
+                  viewLayout === 'cards'
+                    ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.08)] font-bold'
+                    : 'bg-white/[0.01] border border-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.03]'
+                }`}
+              >
+                <LayoutGridIcon className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Grid Cards</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewLayout('list')}
+                className={`flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl select-none transition-all ${
+                  viewLayout === 'list'
+                    ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.08)] font-bold'
+                    : 'bg-white/[0.01] border border-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.03]'
+                }`}
+              >
+                <LayersIcon className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider">Condensed List</span>
+              </button>
+            </div>
+
+            {/* Split Content Area */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+              
+              {/* Left Column: Dynamic Animated Illustration Panel */}
+              <div className="lg:col-span-6 bg-zinc-950/40 border border-white/[0.04] rounded-2xl h-[260px] relative overflow-hidden flex items-center justify-center">
+                
+                {/* 1. TABLE ILLUSTRATION */}
+                <div className={`absolute inset-0 transition-opacity duration-500 ease-in-out flex flex-col justify-center p-4 ${
+                  viewLayout === 'table' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}>
+                  <div className="text-[9px] font-semibold text-zinc-500 border-b border-white/[0.04] pb-1.5 mb-2 font-mono uppercase tracking-widest flex items-center justify-between">
+                    <span>Query Results</span>
+                    <span className="w-2 h-2 rounded-full bg-white/[0.06] border border-white/[0.08]" />
+                  </div>
+                  
+                  <div className="space-y-2 relative h-[120px] illust-t-container">
+                    <div className="grid grid-cols-3 gap-2 pb-1.5 border-b border-white/[0.03] text-[9px] font-semibold text-zinc-600">
+                      <div className="h-2 w-10 bg-zinc-800/80 rounded" />
+                      <div className="h-2 w-12 bg-zinc-800/80 rounded" />
+                      <div className="h-2 w-8 bg-zinc-800/80 rounded" />
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2 items-center py-1.5 illust-t-row-swap-1 absolute left-0 right-0 top-[18px] bg-zinc-950/40 p-1 rounded border border-white/[0.01]">
+                      <div className="h-1.5 w-14 bg-white/10 rounded" />
+                      <div className="h-1.5 w-8 bg-emerald-500/10 border border-emerald-500/20 rounded" />
+                      <div className="h-1.5 w-10 bg-zinc-800/60 rounded" />
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2 items-center py-1.5 illust-t-row-swap-2 absolute left-0 right-0 top-[50px] bg-zinc-950/40 p-1 rounded border border-white/[0.01]">
+                      <div className="h-1.5 w-10 bg-white/10 rounded" />
+                      <div className="h-1.5 w-8 bg-rose-500/10 border border-rose-500/20 rounded" />
+                      <div className="h-1.5 w-12 bg-zinc-800/60 rounded" />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 items-center py-1.5 absolute left-0 right-0 top-[82px] p-1 bg-zinc-950/10 rounded">
+                      <div className="h-1.5 w-16 bg-white/10 rounded" />
+                      <div className="h-1.5 w-8 bg-zinc-700/30 rounded" />
+                      <div className="h-1.5 w-6 bg-zinc-800/60 rounded animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="absolute inset-0 pointer-events-none rounded-2xl illust-shimmer-bg opacity-25" />
+                </div>
+
+                {/* 2. BOARD ILLUSTRATION */}
+                <div className={`absolute inset-0 transition-opacity duration-500 ease-in-out flex flex-col justify-center p-4 ${
+                  viewLayout === 'board' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}>
+                  <div className="grid grid-cols-3 gap-2.5 h-[180px]">
+                    <div className="bg-white/[0.01] border border-white/[0.03] rounded-xl p-2 flex flex-col gap-1.5 h-full">
+                      <div className="text-[8px] font-semibold text-zinc-500 border-b border-white/[0.03] pb-1 font-mono uppercase tracking-wider">Backlog</div>
+                      <div className="p-1.5 bg-white/[0.02] border border-white/[0.04] rounded-lg space-y-1 illust-k-card-1">
+                        <div className="h-1.5 w-full bg-zinc-700/60 rounded" />
+                        <div className="h-1 w-6 bg-zinc-800 rounded" />
+                      </div>
+                      <div className="p-1.5 bg-white/[0.02] border border-white/[0.04] rounded-lg space-y-1 illust-k-card-2">
+                        <div className="h-1.5 w-8 bg-zinc-700/60 rounded" />
+                        <div className="h-1 w-4 bg-zinc-800 rounded" />
+                      </div>
+                    </div>
+
+                    <div className="bg-white/[0.01] border border-white/[0.03] rounded-xl p-2 flex flex-col gap-1.5 h-full relative">
+                      <div className="text-[8px] font-semibold text-zinc-500 border-b border-white/[0.03] pb-1 font-mono uppercase tracking-wider">Running</div>
+                      
+                      <div className="p-1.5 bg-white/[0.03] border border-white/[0.08] rounded-lg space-y-1 absolute left-2 right-2 top-[24px] z-10 illust-k-card-drag">
+                        <div className="h-1.5 w-10 bg-zinc-400 rounded" />
+                        <div className="h-1 w-4 bg-blue-500/20 text-blue-400 rounded" />
+                      </div>
+                      
+                      <div className="p-1.5 bg-white/[0.02] border border-white/[0.04] rounded-lg space-y-1 opacity-0">
+                        <div className="h-1.5 w-full" />
+                      </div>
+                    </div>
+
+                    <div className="bg-white/[0.01] border border-white/[0.03] rounded-xl p-2 flex flex-col gap-1.5 h-full">
+                      <div className="text-[8px] font-semibold text-zinc-500 border-b border-white/[0.03] pb-1 font-mono uppercase tracking-wider">Done</div>
+                      <div className="p-1.5 bg-white/[0.02] border border-white/[0.04] rounded-lg space-y-1 illust-k-card-3">
+                        <div className="h-1.5 w-full bg-zinc-700/60 rounded" />
+                        <div className="h-1 w-4 bg-emerald-500/20 text-emerald-400 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. CARDS ILLUSTRATION */}
+                <div className={`absolute inset-0 transition-opacity duration-500 ease-in-out flex flex-col justify-center p-4 ${
+                  viewLayout === 'cards' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}>
+                  <div className="grid grid-cols-2 gap-2.5 illust-c-grid">
+                    <div className="p-2.5 rounded-xl bg-white/[0.01] border border-white/[0.04] space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div className="h-1.5 w-6 bg-zinc-700 rounded" />
+                        <div className="w-1 h-1 rounded-full bg-zinc-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-1.5 w-full bg-zinc-500/50 rounded" />
+                        <div className="h-1 w-8 bg-zinc-600/30 rounded" />
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl border space-y-2 illust-c-hover-card transition-all">
+                      <div className="flex justify-between items-center">
+                        <div className="h-1.5 w-8 bg-zinc-300 rounded" />
+                        <div className="w-1 h-1 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.6)]" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-1.5 w-full bg-zinc-100 rounded" />
+                        <div className="h-1 w-10 bg-zinc-400 rounded" />
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-white/[0.01] border border-white/[0.04] space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div className="h-1.5 w-7 bg-zinc-700 rounded" />
+                        <div className="w-1 h-1 rounded-full bg-emerald-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-1.5 w-full bg-zinc-500/50 rounded" />
+                        <div className="h-1 w-12 bg-zinc-600/30 rounded" />
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-white/[0.01] border border-white/[0.04] space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div className="h-1.5 w-5 bg-zinc-700 rounded" />
+                        <div className="w-1 h-1 rounded-full bg-zinc-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-1.5 w-full bg-zinc-500/50 rounded" />
+                        <div className="h-1 w-6 bg-zinc-600/30 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. LIST ILLUSTRATION */}
+                <div className={`absolute inset-0 transition-opacity duration-500 ease-in-out flex flex-col justify-center p-4 ${
+                  viewLayout === 'list' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}>
+                  <div className="space-y-2 relative h-[130px] illust-l-container">
+                    <div className="flex items-center justify-between p-2 rounded bg-white/[0.01] border border-white/[0.03]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-2 h-2 rounded-full border border-white/20 flex items-center justify-center illust-l-dot shrink-0" />
+                        <div className="h-2 w-24 bg-zinc-200/80 rounded illust-l-strike" />
+                      </div>
+                      <div className="h-1.5 w-6 bg-zinc-800 rounded shrink-0" />
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 rounded bg-white/[0.01] border border-white/[0.03]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-2 h-2 rounded-full border border-white/20 flex items-center justify-center shrink-0" />
+                        <div className="h-2 w-16 bg-zinc-400 rounded" />
+                      </div>
+                      <div className="h-1.5 w-10 bg-zinc-800 rounded shrink-0" />
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 rounded bg-white/[0.01] border border-white/[0.03]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-2 h-2 rounded-full border border-white/20 flex items-center justify-center shrink-0" />
+                        <div className="h-2 w-20 bg-zinc-400 rounded" />
+                      </div>
+                      <div className="h-1.5 w-8 bg-zinc-800 rounded shrink-0" />
+                    </div>
+                    
+                    <div className="absolute left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none illust-l-sweep" />
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Layout Type</label>
-                  <select
-                    value={viewLayout}
-                    onChange={(e) => setViewLayout(e.target.value)}
-                    className="w-full bg-zinc-900 border border-white/[0.08] focus:border-white/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
-                  >
-                    <option value="table">Table View</option>
-                    <option value="board">Status Kanban Board</option>
-                    <option value="cards">Detail Grid Cards</option>
-                    <option value="list">Condensed List</option>
-                  </select>
-                </div>
+              {/* Right Column: Minimally Structured Glass Form */}
+              <div className="lg:col-span-6 flex flex-col justify-between">
+                <form onSubmit={handleCreateView} className="space-y-3.5">
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-wider mb-1">View Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={viewName}
+                      onChange={(e) => setViewName(e.target.value)}
+                      placeholder="e.g. Completed Tasks, Urgent Bugs..."
+                      className="w-full bg-zinc-900/50 border border-white/[0.08] focus:border-white/30 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none transition-colors"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Sort Order</label>
-                  <select
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value)}
-                    className="w-full bg-zinc-900 border border-white/[0.08] focus:border-white/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
-                  >
-                    <option value="asc">Ascending (A-Z)</option>
-                    <option value="desc">Descending (Z-A)</option>
-                  </select>
-                </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-wider mb-1">Filter By</label>
+                      <select
+                        value={filterProp}
+                        onChange={(e) => setFilterProp(e.target.value)}
+                        className="w-full bg-zinc-900/50 border border-white/[0.08] focus:border-white/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      >
+                        <option value="all">None (Show All)</option>
+                        {properties.map(p => (
+                          <option key={p.name} value={p.name}>{p.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-wider mb-1">Sort By</label>
+                      <select
+                        value={sortProp}
+                        onChange={(e) => setSortProp(e.target.value)}
+                        className="w-full bg-zinc-900/50 border border-white/[0.08] focus:border-white/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      >
+                        {properties.map(p => (
+                          <option key={p.name} value={p.name}>{p.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {filterProp !== 'all' && (
+                    <div className="animate-fade-in">
+                      <label className="block text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-wider mb-1">Matches Value</label>
+                      <input
+                        type="text"
+                        value={filterVal}
+                        onChange={(e) => setFilterVal(e.target.value)}
+                        placeholder="e.g. High, Backlog, Sarah..."
+                        className="w-full bg-zinc-900/50 border border-white/[0.08] focus:border-white/30 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none transition-colors"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-wider mb-1">Sort Order</label>
+                    <div className="flex bg-zinc-900/60 p-0.5 rounded-lg border border-white/[0.06] mt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setSortOrder('asc')}
+                        className={`flex-1 py-1 rounded-md text-[10px] font-semibold text-center transition-all ${
+                          sortOrder === 'asc' ? 'bg-white/10 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'
+                        }`}
+                      >
+                        Ascending
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSortOrder('desc')}
+                        className={`flex-1 py-1 rounded-md text-[10px] font-semibold text-center transition-all ${
+                          sortOrder === 'desc' ? 'bg-white/10 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'
+                        }`}
+                      >
+                        Descending
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Actions Footer */}
+                  <div className="pt-3 flex justify-end gap-2 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateModal(false)}
+                      className="px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-zinc-400 hover:text-white transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 transition-colors shadow-lg shadow-white/5"
+                    >
+                      Create View
+                    </button>
+                  </div>
+                </form>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Filter By Property</label>
-                  <select
-                    value={filterProp}
-                    onChange={(e) => setFilterProp(e.target.value)}
-                    className="w-full bg-zinc-900 border border-white/[0.08] focus:border-white/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
-                  >
-                    <option value="all">None (Show All)</option>
-                    {properties.map(p => (
-                      <option key={p.name} value={p.name}>{p.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Sort By Property</label>
-                  <select
-                    value={sortProp}
-                    onChange={(e) => setSortProp(e.target.value)}
-                    className="w-full bg-zinc-900 border border-white/[0.08] focus:border-white/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
-                  >
-                    {properties.map(p => (
-                      <option key={p.name} value={p.name}>{p.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {filterProp !== 'all' && (
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Filter Matches Value</label>
-                  <input
-                    type="text"
-                    value={filterVal}
-                    onChange={(e) => setFilterVal(e.target.value)}
-                    placeholder="e.g. High, Completed, Google..."
-                    className="w-full bg-zinc-900 border border-white/[0.08] focus:border-white/30 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none transition-colors"
-                  />
-                </div>
-              )}
-
-              <div className="pt-2 flex justify-end gap-2 text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-zinc-400 hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 transition-colors"
-                >
-                  Create View
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
